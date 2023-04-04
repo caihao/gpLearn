@@ -1,0 +1,179 @@
+import torch
+import pickle
+import matplotlib.pyplot as plt
+
+from bin.dataLoader import load_data
+from utils.path import get_project_file_path
+
+def generate_info_data(data_file_path_relative:str,epoch_step:int=10,train_type:str="particle"):
+    with open(get_project_file_path(data_file_path_relative),"rb") as f:
+        data_info=pickle.load(f)
+        f.close()
+    
+    x=[0]
+    if train_type=="particle":
+        train_loss=[]
+        train_acc=[]
+        test_acc_g=[0]
+        test_acc_p=[0]
+        test_acc=[0]
+        test_q=[0]
+    elif train_type=="energy":
+        train_loss=[]
+        test_l_g=[0]
+        test_l_p=[0]
+        test_l=[0]
+    else:
+        raise Exception("invalid train type")
+
+    for item in data_info:
+        for m in range(len(item)):
+            x=x+[x[-1]+(i+1)/epoch_step for i in range(epoch_step)]
+            train_length=len(item[m]["train"])
+            train_gap_points=[int(train_length*(i+1)/epoch_step) for i in range(epoch_step)]
+
+            gap_loss=0
+            gap_acc=0
+            gap_total=0
+            for i in range(train_length):
+                if (i+1) not in train_gap_points:
+                    if train_type=="particle":
+                        gap_loss=gap_loss+item[m]["train"][i]["loss"]
+                        gap_acc=gap_acc+item[m]["train"][i]["acc"]
+                        gap_total=gap_total+item[m]["train"][i]["batchSize"]
+                    elif train_type=="energy":
+                        gap_loss=gap_loss+item[m]["train"][i]["loss"]
+                        gap_total=gap_total+item[m]["train"][i]["batchSize"]
+                else:
+                    if train_type=="particle":
+                        train_loss.append(gap_loss/gap_total)
+                        train_acc.append(gap_acc/gap_total)
+                    elif train_type=="energy":
+                        train_loss.append(gap_loss/gap_total)
+                    gap_total=0
+                    gap_loss=0
+                    gap_acc=0
+
+            if train_type=="particle":
+                k_acc_g=(item[m]["test"][0]["acc_g"]-test_acc_g[-1])/epoch_step
+                for i in range(epoch_step):
+                    test_acc_g.append(test_acc_g[-1]+k_acc_g)
+
+                k_acc_p=(item[m]["test"][0]["acc_p"]-test_acc_p[-1])/epoch_step
+                for i in range(epoch_step):
+                    test_acc_p.append(test_acc_p[-1]+k_acc_p)
+
+                k_acc=(item[m]["test"][0]["acc"]-test_acc[-1])/epoch_step
+                for i in range(epoch_step):
+                    test_acc.append(test_acc[-1]+k_acc)
+
+                k_q=(item[m]["test"][0]["q"]-test_q[-1])/epoch_step
+                for i in range(epoch_step):
+                    test_q.append(test_q[-1]+k_q)
+            
+            elif train_type=="energy":
+                k_l_g=(item[m]["test"][0]["l_g"]-test_l_g[-1])/epoch_step
+                for i in range(epoch_step):
+                    test_l_g.append(test_l_g[-1]+k_l_g)
+
+                k_l_p=(item[m]["test"][0]["l_p"]-test_l_p[-1])/epoch_step
+                for i in range(epoch_step):
+                    test_l_p.append(test_l_p[-1]+k_l_p)
+
+                k_l=(item[m]["test"][0]["l"]-test_l[-1])/epoch_step
+                for i in range(epoch_step):
+                    test_l.append(test_l[-1]+k_l)
+
+    x=x[1:]
+    if train_type=="particle":
+        test_acc_g=test_acc_g[1:]
+        test_acc_p=test_acc_p[1:]
+        test_acc=test_acc[1:]
+        test_q=test_q[1:]
+        return x,train_loss,train_acc,test_acc_g,test_acc_p,test_acc,test_q
+    elif train_type=="energy":
+        test_l_g=test_l_g[1:]
+        test_l_p=test_l_p[1:]
+        test_l=test_l[1:]
+        return x,train_loss,test_l_g,test_l_p,test_l
+    
+def generate_info_picture(data_file_path_relative:str,epoch_step:int=10,train_type:str="particle",picture_title:str=None):
+    if train_type=="particle":
+        x,train_loss,train_acc,test_acc_g,test_acc_p,test_acc,test_q=generate_info_data(data_file_path_relative,epoch_step,train_type)
+    elif train_type=="energy":
+        x,train_loss,test_l_g,test_l_p,test_l=generate_info_data(data_file_path_relative,epoch_step,train_type)
+    else:
+        raise Exception("invalid train type")
+    
+    if train_type=="particle":
+        fig, axs = plt.subplots(2, 3)
+        axs[0, 0].plot(x, train_loss, label='train_loss')
+        axs[0, 1].plot(x, train_acc, label='train_acc')
+        axs[0, 2].plot(x, test_acc_g, label='test_acc_gamma')
+        axs[1, 0].plot(x, test_acc_p, label='test_acc_proton')
+        axs[1, 1].plot(x, test_acc, label='test_acc')
+        axs[1, 2].plot(x, test_q, label='test_q')
+
+        for ax in axs.flat:
+            ax.legend()
+            ax.set_title(picture_title if picture_title!=None else 'particle')
+        plt.show()
+    
+    elif train_type=="energy":
+        fig, axs = plt.subplots(2, 2)
+        axs[0, 0].plot(x, train_loss, label='train_loss')
+        axs[0, 1].plot(x, test_l_g, label='test_loss_gamma')
+        axs[1, 0].plot(x, test_l_p, label='test_loss_proton')
+        axs[1, 1].plot(x, test_l, label='test_loss')
+
+        for ax in axs.flat:
+            ax.legend()
+            ax.set_title(picture_title if picture_title!=None else 'energy')
+        plt.show()
+
+def energy_distribution(particle:str,energy:int,model_file:str,total_number:int,allow_pic_number_list:list=[4,3,2,1],allow_min_pix_number:int=None,ignore_number:int=0,centering:bool=True,ran:int=500,epo:int=5):
+    data,_=load_data(particle,energy,total_number,allow_pic_number_list,allow_min_pix_number,ignore_number,64,"overlay",centering,None,None)
+    device=torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    state=torch.load(get_project_file_path("data/model/"+model_file))
+    model=state['model'].to(device)
+
+    points=[]
+    for i in range(len(data)):
+        points.append(model(data[i:i+1].to(device)).reshape(1).item())
+    x=[]
+    y=[]
+    def p(x1,x2,points):
+        num=0
+        for i in points:
+            if i*100>=x1 and i*100<x2:
+                num=num+1
+        return num/len(points)
+    for i in range(energy-ran,energy+ran,epo):
+        x.append(i)
+        y.append(p(i,i+epo,points))
+
+    # return x,y,points
+    plt.plot(x, y, 'b-', alpha=0.5, linewidth=1, label=particle+" "+str(energy)+'GeV')
+    plt.legend()
+    plt.xlabel('Energy(GeV)')
+    plt.ylabel('Normalized Event')
+    
+    plt.xlim(energy-ran-100 if (energy-ran-100)>=0 else 0,energy+ran+100)
+    plt.ylim(0,max(y))
+    plt.show()
+
+def show_particle_picture(tensor_data,index:int,single_pic_size:int=64,_type:str="single"):
+    if _type=="single":
+        data=tensor_data[index].reshape(2*single_pic_size,2*single_pic_size)
+        fig, axs = plt.subplots(figsize=(5,5))
+        axs.imshow(data.numpy())
+    elif _type=="multi":
+        data=tensor_data[index]
+        fig, axs = plt.subplots(2, 2, figsize=(5,5))
+        axs[0, 0].imshow(data[0].numpy())
+        axs[0, 1].imshow(data[1].numpy())
+        axs[1, 0].imshow(data[2].numpy())
+        axs[1, 1].imshow(data[3].numpy())
+    else:
+        raise Exception("invalid _type")
+    plt.show()
