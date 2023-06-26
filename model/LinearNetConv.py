@@ -1,12 +1,9 @@
-# 残差网络(ResNet)
-# 适用于粒子分辨 train_type=particle
-
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
 
 class Residual(nn.Module):
-    def __init__(self,input_channels,num_channels,use_1x1conv=False,strides=1):
+    def __init__(self,input_channels,num_channels,use_1x1conv=False, strides=1):
         super().__init__()
         self.conv1 = nn.Conv2d(input_channels, num_channels, kernel_size=3, padding=1, stride=strides)
         self.conv2 = nn.Conv2d(num_channels, num_channels, kernel_size=3, padding=1)
@@ -25,8 +22,8 @@ class Residual(nn.Module):
         Y += X
         return F.relu(Y)
 
-class ResNet(nn.Module):
-    def __init__(self,input_channel,input_size_x,input_size_y,output_size,init_weights=False):
+class ResNet_Block(nn.Module):
+    def __init__(self,input_channel,hidden_size):
         super().__init__()
         def resnet_block(input_channels,num_channels,num_residuals,first_block=False):
             blk=[]
@@ -45,34 +42,42 @@ class ResNet(nn.Module):
 
         self.features=nn.Sequential(
             b1,b2,b3,b4,b5,
-            nn.AdaptiveAvgPool2d((1,1)),
+            nn.AdaptiveAvgPool2d((hidden_size,hidden_size)),
             nn.Flatten()
         )
-        x=torch.randn(1,input_channel,input_size_x,input_size_y)
-        linear_input_size=self.features(x).size(-1)
-        # print(self.features(x).shape)
-        self.classifer=nn.Sequential(
-            nn.Linear(linear_input_size,output_size)
-        )
-        if init_weights:
-            self._initialize_weights()
+        # x=torch.randn(1,input_channel,input_size_x,input_size_y)
+        # linear_input_size=self.features(x).size(-1)
+        # self.classifer=nn.Sequential(
+        #     nn.Linear(linear_input_size,hidden_size)
+        # )
 
     def forward(self,x):
         x=self.features(x)
-        x=self.classifer(x)
+        # x=self.classifer(x)
         return x
 
-    def _initialize_weights(self):
-        for m in self.modules():
-            if isinstance(m, nn.Conv2d):
-                nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
-                if m.bias is not None:
-                    nn.init.constant_(m.bias, 0)
-            elif isinstance(m, nn.BatchNorm2d):
-                nn.init.constant_(m.weight, 1)
-                if m.bias is not None:
-                    nn.init.constant_(m.bias, 0)
-            elif isinstance(m, nn.Linear):
-                nn.init.normal_(m.weight, 0, 0.01)
-                if m.bias is not None:
-                    nn.init.constant_(m.bias, 0)
+class LinearNetConv(nn.Module):
+    def __init__(self,input_channel,input_size_x,input_size_y,input_size_info,hidden_size_pic,hidden_size_info,output_size):
+        super().__init__()
+        self.single_conv=nn.Sequential(
+            ResNet_Block(input_channel,hidden_size_pic)
+        )
+        self.single_linear=nn.Sequential(
+            nn.Linear(input_size_info,hidden_size_info),
+            nn.Flatten()
+        )
+        x=torch.rand((1,input_channel,input_size_x,input_size_y))
+        conv_size=self.single_conv(x).size(-1)
+        self.joint=nn.Sequential(
+            nn.Linear(4*(conv_size+hidden_size_info),conv_size+hidden_size_info),nn.ReLU(),
+            nn.Linear(conv_size+hidden_size_info,output_size)
+        )
+
+    def forward(self,X,Y):
+        x1,x2,x3,x4=torch.split(X,1,dim=1)
+        y1,y2,y3,y4=torch.split(Y,1,dim=1)
+        return self.joint(torch.cat((
+            self.single_conv(x1),self.single_conv(x2),self.single_conv(x3),self.single_conv(x4),
+            self.single_linear(y1),self.single_linear(y2),self.single_linear(y3),self.single_linear(y4)
+        ),dim=1))
+

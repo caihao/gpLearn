@@ -29,6 +29,7 @@ def generate_info_data(data_file_path_relative:str,epoch_step:int=10,train_type:
     for item in data_info:
         for m in range(len(item)):
             x=x+[x[-1]+(i+1)/epoch_step for i in range(epoch_step)]
+            # print(x)
             train_length=len(item[m]["train"])
             train_gap_points=[int(train_length*(i+1)/epoch_step) for i in range(epoch_step)]
 
@@ -46,10 +47,11 @@ def generate_info_data(data_file_path_relative:str,epoch_step:int=10,train_type:
                         gap_total=gap_total+item[m]["train"][i]["batchSize"]
                 else:
                     if train_type=="particle":
-                        train_loss.append(gap_loss/gap_total)
-                        train_acc.append(gap_acc/gap_total)
+                        train_loss.append(gap_loss/(gap_total+0.00001))
+                        train_acc.append(gap_acc/(gap_total+0.00001))
                     elif train_type=="energy":
-                        train_loss.append(gap_loss/gap_total)
+                        train_loss.append(gap_loss/(gap_total+0.00001))
+                        # print("###")
                     gap_total=0
                     gap_loss=0
                     gap_acc=0
@@ -121,6 +123,7 @@ def generate_info_picture(data_file_path_relative:str,epoch_step:int=10,train_ty
     
     elif train_type=="energy":
         fig, axs = plt.subplots(2, 2)
+        print(len(x),len(train_loss),len(test_l_g),len(test_l_p),len(test_l))
         axs[0, 0].plot(x, train_loss, label='train_loss')
         axs[0, 1].plot(x, test_l_g, label='test_loss_gamma')
         axs[1, 0].plot(x, test_l_p, label='test_loss_proton')
@@ -132,14 +135,15 @@ def generate_info_picture(data_file_path_relative:str,epoch_step:int=10,train_ty
         plt.show()
 
 def energy_distribution(particle:str,energy:int,model_file:str,total_number:int,allow_pic_number_list:list=[4,3,2,1],allow_min_pix_number:int=None,ignore_number:int=0,centering:bool=True,ran:int=500,epo:int=5):
-    data,_=load_data(particle,energy,total_number,allow_pic_number_list,allow_min_pix_number,ignore_number,64,"overlay",centering,None,None)
+    data,_=load_data(particle,energy,total_number,allow_pic_number_list,allow_min_pix_number,ignore_number,64,"energy",centering,None,None)
     device=torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     state=torch.load(get_project_file_path("data/model/"+model_file))
     model=state['model'].to(device)
 
     points=[]
-    for i in range(len(data)):
-        points.append(model(data[i:i+1].to(device)).reshape(1).item())
+    for i in range(len(data[0])):
+        points.append(model(data[0][i:i+1].to(device),data[1][i:i+1].to(device)).reshape(1).item())
+        # points.append(model(data[0][i:i+1].to(device)).reshape(1).item())
     x=[]
     y=[]
     def p(x1,x2,points):
@@ -161,6 +165,26 @@ def energy_distribution(particle:str,energy:int,model_file:str,total_number:int,
     plt.xlim(energy-ran-100 if (energy-ran-100)>=0 else 0,energy+ran+100)
     plt.ylim(0,max(y))
     plt.show()
+    return x,y
+
+def energy_error(particle:str,energy:int,model_file:str,total_number:int,allow_pic_number_list:list=[4],allow_min_pix_number:int=None,ignore_number:int=0,centering:bool=True):
+    data,_=load_data(particle,energy,total_number,allow_pic_number_list,allow_min_pix_number,ignore_number,64,"energy",centering,None,None)
+    device=torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    state=torch.load(get_project_file_path("data/model/"+model_file))
+    model=state['model'].to(device)
+
+    points=[]
+    for i in range(len(data[0])):
+        points.append(model(data[0][i:i+1].to(device),data[1][i:i+1].to(device)).reshape(1).item())
+
+    error=0
+    print(points)
+    for i in points:
+        error=(energy/1000-i)**2+error
+        # error=abs(energy-i*1000)+error
+    error=error/total_number
+    return error
+    # return error/energy
 
 def show_particle_picture(tensor_data,index:int,single_pic_size:int=64,_type:str="single"):
     if _type=="single":

@@ -42,7 +42,7 @@ class Au(object):
             centering:bool=True,
             use_weight:bool=False,
             train_type:str="particle",
-            use_loading_process:int=4,
+            use_loading_process:int=None,
             use_gpu_number:int=None,
             current_file_name:str="main.py"
     ):
@@ -68,7 +68,10 @@ class Au(object):
             log.info("SET CUDA DEVICE",use_gpu_number)
         else:
             log.info("SET CUDA DEVICE","default")
-        log.info("use_loading_process",use_loading_process)
+        if use_loading_process==None:
+            log.info("use_loading_process","No_Multi_Process")
+        else:
+            log.info("use_loading_process",use_loading_process)
 
         self.train_type=train_type
         self.pic_size=pic_size
@@ -118,48 +121,152 @@ class Au(object):
         
         for i in gamma_energy_list:
             print(i)
-            if train_type=="energy":
-                data,label=load_data("gamma" if use_data_type==None else "gamma_"+use_data_type,i,particle_number_gamma,allow_pic_number_list,allow_min_pix_number,ignore_head_number,pic_size,"overlay",centering,use_weight,i/100,torch.float32,log)
-            elif train_type=="particle":
-                data,label=load_data("gamma" if use_data_type==None else "gamma_"+use_data_type,i,particle_number_gamma,allow_pic_number_list,allow_min_pix_number,ignore_head_number,pic_size,"joint",centering,use_weight,0,torch.int64,log)
-                # data,label=load_data("gamma" if use_data_type==None else "gamma_"+use_data_type,i,particle_number_gamma,allow_pic_number_list,allow_min_pix_number,ignore_head_number,pic_size,"overlay",centering,use_weight,0,torch.int64,log)
+            if train_type=="particle":
+                data,label=load_data("gamma" if use_data_type==None else "gamma_"+use_data_type,i,particle_number_gamma,allow_pic_number_list,allow_min_pix_number,ignore_head_number,pic_size,train_type,centering,use_weight,0,torch.int64,log)
+            elif train_type=="energy":
+                data,label=load_data("gamma" if use_data_type==None else "gamma_"+use_data_type,i,particle_number_gamma,allow_pic_number_list,allow_min_pix_number,ignore_head_number,pic_size,train_type,centering,use_weight,i/100,torch.float32,log)
+            elif train_type=="position":
+                data,label=load_data("gamma" if use_data_type==None else "gamma_"+use_data_type,i,particle_number_gamma,allow_pic_number_list,allow_min_pix_number,ignore_head_number,pic_size,train_type,centering,use_weight,None,None,log)
+            elif train_type=="angle":
+                data,label=load_data("gamma" if use_data_type==None else "gamma_"+use_data_type,i,particle_number_gamma,allow_pic_number_list,allow_min_pix_number,ignore_head_number,pic_size,train_type,centering,use_weight,None,None,log)
             else:
-                raise Exception("invalid train_type")
-            
+                raise Exception("invalid train type")
+
             if self.train_data==None:
-                self.train_data=data[:int(interval*len(data))]
+                if train_type=="particle":
+                    self.train_data=data[:int(interval*len(data))]
+                elif train_type=="energy":
+                    self.train_data=[data[0][:int(interval*len(data[0]))],data[1][:int(interval*len(data[1]))]]
+                elif train_type=="position":
+                    self.train_data=data[:int(interval*len(data))]
+                    # self.train_data=[data[0][:int(interval*len(data[0]))],data[1][:int(interval*len(data[1]))]]
+                elif train_type=="angle":
+                    self.train_data=data[:int(interval*len(data))]
             else:
-                self.train_data=torch.cat((self.train_data,data[:int(interval*len(data))]))
+                if train_type=="particle":
+                    self.train_data=torch.cat((self.train_data,data[:int(interval*len(data))]))
+                elif train_type=="energy":
+                    self.train_data=[
+                        torch.cat((self.train_data[0],data[0][:int(interval*len(data[0]))])),
+                        torch.cat((self.train_data[1],data[1][:int(interval*len(data[1]))]))
+                    ]
+                elif train_type=="position":
+                    self.train_data=torch.cat((self.train_data,data[:int(interval*len(data))]))
+                    # self.train_data=[
+                    #     torch.cat((self.train_data[0],data[0][:int(interval*len(data[0]))])),
+                    #     torch.cat((self.train_data[1],data[1][:int(interval*len(data[1]))]))
+                    # ]
+                elif train_type=="angle":
+                    self.train_data=torch.cat((self.train_data,data[:int(interval*len(data))]))
+            
             if self.train_label==None:
                 self.train_label=label[:int(interval*len(label))]
             else:
                 self.train_label=torch.cat((self.train_label,label[:int(interval*len(label))]))
-            self.test_list["test_data_list"].append(data[int(interval*len(data)):])
+            
+            if train_type=="particle":
+                self.test_list["test_data_list"].append(data[int(interval*len(data)):])
+            elif train_type=="energy":
+                self.test_list["test_data_list"].append([data[0][int(interval*len(data[0])):],data[1][int(interval*len(data[1])):]])
+            elif train_type=="position":
+                self.test_list["test_data_list"].append(data[int(interval*len(data)):])
+                # self.test_list["test_data_list"].append([data[0][int(interval*len(data[0])):],data[1][int(interval*len(data[1])):]])
+            elif train_type=="angle":
+                self.test_list["test_data_list"].append(data[int(interval*len(data)):])
             self.test_list["test_label_list"].append(label[int(interval*len(data)):])
             self.test_list["test_type_list"].append(0)
             self.test_list["test_energy_list"].append(i)
+
+            # if train_type=="energy":
+            #     data,label=load_data("gamma" if use_data_type==None else "gamma_"+use_data_type,i,particle_number_gamma,allow_pic_number_list,allow_min_pix_number,ignore_head_number,pic_size,"overlay",centering,use_weight,i/100,torch.float32,log)
+            # elif train_type=="particle":
+            #     data,label=load_data("gamma" if use_data_type==None else "gamma_"+use_data_type,i,particle_number_gamma,allow_pic_number_list,allow_min_pix_number,ignore_head_number,pic_size,"joint",centering,use_weight,0,torch.int64,log)
+            #     # data,label=load_data("gamma" if use_data_type==None else "gamma_"+use_data_type,i,particle_number_gamma,allow_pic_number_list,allow_min_pix_number,ignore_head_number,pic_size,"overlay",centering,use_weight,0,torch.int64,log)
+            # else:
+            #     raise Exception("invalid train_type")
+            
+            # if self.train_data==None:
+            #     self.train_data=data[:int(interval*len(data))]
+            # else:
+            #     self.train_data=torch.cat((self.train_data,data[:int(interval*len(data))]))
+            # if self.train_label==None:
+            #     self.train_label=label[:int(interval*len(label))]
+            # else:
+            #     self.train_label=torch.cat((self.train_label,label[:int(interval*len(label))]))
+            # self.test_list["test_data_list"].append(data[int(interval*len(data)):])
+            # self.test_list["test_label_list"].append(label[int(interval*len(data)):])
+            # self.test_list["test_type_list"].append(0)
+            # self.test_list["test_energy_list"].append(i)
     
         for i in proton_energy_list:
             print(i)
-            if train_type=="energy":
-                data,label=load_data("proton" if use_data_type==None else "proton_"+use_data_type,i,particle_number_proton,allow_pic_number_list,allow_min_pix_number,ignore_head_number,pic_size,"overlay",centering,use_weight,i/100,torch.float32,log)
-            elif train_type=="particle":
-                data,label=load_data("proton" if use_data_type==None else "proton_"+use_data_type,i,particle_number_proton,allow_pic_number_list,allow_min_pix_number,ignore_head_number,pic_size,"joint",centering,use_weight,1,torch.int64,log)
-                # data,label=load_data("proton" if use_data_type==None else "proton_"+use_data_type,i,particle_number_proton,allow_pic_number_list,allow_min_pix_number,ignore_head_number,pic_size,"overlay",centering,use_weight,1,torch.int64,log)
-            else:
-                raise Exception("invalid train_type")
+            if train_type=="particle":
+                data,label=load_data("proton" if use_data_type==None else "proton_"+use_data_type,i,particle_number_proton,allow_pic_number_list,allow_min_pix_number,ignore_head_number,pic_size,train_type,centering,use_weight,1,torch.int64,log)
+            elif train_type=="energy":
+                data,label=load_data("proton" if use_data_type==None else "proton_"+use_data_type,i,particle_number_proton,allow_pic_number_list,allow_min_pix_number,ignore_head_number,pic_size,train_type,centering,use_weight,i/100,torch.float32,log)
+            elif train_type=="position":
+                data,label=load_data("proton" if use_data_type==None else "proton_"+use_data_type,i,particle_number_gamma,allow_pic_number_list,allow_min_pix_number,ignore_head_number,pic_size,train_type,centering,use_weight,None,None,log)
+            elif train_type=="angle":
+                data,label=load_data("proton" if use_data_type==None else "proton_"+use_data_type,i,particle_number_gamma,allow_pic_number_list,allow_min_pix_number,ignore_head_number,pic_size,train_type,centering,use_weight,None,None,log)
+            
             if self.train_data==None:
-                self.train_data=data[:int(interval*len(data))]
+                if train_type=="particle":
+                    self.train_data=data[:int(interval*len(data))]
+                elif train_type=="energy":
+                    self.train_data=[data[0][:int(interval*len(data[0]))],data[1][:int(interval*len(data[1]))]]
+                elif train_type=="position":
+                    self.train_data=data[:int(interval*len(data))]
+                    # self.train_data=data[data[0][:int(interval*len(data[0]))],data[1][:int(interval*len(data[1]))]]
+                elif train_type=="angle":
+                    self.train_data=data[:int(interval*len(data))]
             else:
-                self.train_data=torch.cat((self.train_data,data[:int(interval*len(data))]))
+                if train_type=="particle":
+                    self.train_data=torch.cat((self.train_data,data[:int(interval*len(data))]))
+                elif train_type=="energy":
+                    self.train_data=[
+                        torch.cat((self.train_data[0],data[0][:int(interval*len(data[0]))])),
+                        torch.cat((self.train_data[1],data[1][:int(interval*len(data[1]))]))
+                    ]
+                elif train_type=="position":
+                    self.train_data=torch.cat((self.train_data,data[:int(interval*len(data))]))
+                    # self.train_data=[
+                    #     torch.cat((self.train_data[0],data[0][:int(interval*len(data[0]))])),
+                    #     torch.cat((self.train_data[1],data[1][:int(interval*len(data[1]))]))
+                    # ]
+                elif train_type=="angle":
+                    self.train_data=torch.cat((self.train_data,data[:int(interval*len(data))]))
+            
             if self.train_label==None:
                 self.train_label=label[:int(interval*len(label))]
             else:
                 self.train_label=torch.cat((self.train_label,label[:int(interval*len(label))]))
-            self.test_list["test_data_list"].append(data[int(interval*len(data)):])
+            
+            if train_type=="particle":
+                self.test_list["test_data_list"].append(data[int(interval*len(data)):])
+            elif train_type=="energy":
+                self.test_list["test_data_list"].append([data[0][int(interval*len(data[0])):],data[1][int(interval*len(data[1])):]])
+            elif train_type=="position":
+                self.test_list["test_data_list"].append(data[int(interval*len(data)):])
+                # self.test_list["test_data_list"].append([data[0][int(interval*len(data[0])):],data[1][int(interval*len(data[1])):]])
+            elif train_type=="angle":
+                self.test_list["test_data_list"].append(data[int(interval*len(data)):])
             self.test_list["test_label_list"].append(label[int(interval*len(data)):])
             self.test_list["test_type_list"].append(1)
             self.test_list["test_energy_list"].append(i)
+
+
+            # if self.train_data==None:
+            #     self.train_data=data[:int(interval*len(data))]
+            # else:
+            #     self.train_data=torch.cat((self.train_data,data[:int(interval*len(data))]))
+            # if self.train_label==None:
+            #     self.train_label=label[:int(interval*len(label))]
+            # else:
+            #     self.train_label=torch.cat((self.train_label,label[:int(interval*len(label))]))
+            # self.test_list["test_data_list"].append(data[int(interval*len(data)):])
+            # self.test_list["test_label_list"].append(label[int(interval*len(data)):])
+            # self.test_list["test_type_list"].append(1)
+            # self.test_list["test_energy_list"].append(i)
 
         log.write("data loading finish")
         self.log=log
@@ -175,7 +282,12 @@ class Au(object):
                 initializeModel(modelName,1,self.pic_size*2,self.pic_size*2,2,model_type,["acc","q"])
                 # initializeModel(modelName,4,self.pic_size,self.pic_size,2,model_type,["acc","q"])
             elif self.train_type=="energy":
-                initializeModel(modelName,4,self.pic_size,self.pic_size,1,model_type,["l"])
+                initializeModel(modelName,4,self.pic_size,self.pic_size,1,model_type,["l"],input_info=4)
+                # initializeModel(modelName,1,self.pic_size,self.pic_size,1,model_type,["l"])
+            elif self.train_type=="position":
+                initializeModel(modelName,1,self.pic_size*2,self.pic_size*2,2,model_type,["l","l_0","l_1"],input_info=2)
+            elif self.train_type=="angle":
+                initializeModel(modelName,4,self.pic_size,self.pic_size,2,model_type,["l"],input_info=2)
             else:
                 self.log.error("invalid train type")
                 raise Exception("invalid train type")
@@ -196,8 +308,31 @@ class Au(object):
             self.l=state['l']
             print("model l:"+str(self.l))
             self.log.write("model l:"+str(self.l))
+            # class EnergyLoss(nn.Module):
+            #     def __init__(self):
+            #         super(EnergyLoss,self).__init__()
+
+            #     def forward(self,inputs,targets):
+            #         loss=torch.mean((inputs-targets)**2)/targets**2
+            #         return loss
+
             self.loss_function=nn.MSELoss(reduction="sum")
-            self.log.info("loss_function","nn.MSELoss()")
+            # self.loss_function=EnergyLoss()
+            self.log.info("loss_function","nn.MSELoss(reduction=sum)")
+        elif self.train_type=="position":
+            self.l=state['l']
+            self.l_0=state['l_0']
+            self.l_1=state['l_1']
+            print("model l:"+str(self.l)+", l_0:"+str(self.l_0)+", l_1:"+str(self.l_1))
+            self.log.write("model l:"+str(self.l)+", l_0:"+str(self.l_0)+", l_1:"+str(self.l_1))
+            self.loss_function=nn.MSELoss(reduction="sum")
+            self.log.info("loss_function","nn.MSELoss(reduction=sum)")
+        elif self.train_type=="angle":
+            self.l=state['l']
+            print("model l:"+str(self.l))
+            self.log.write("model l:"+str(self.l))
+            self.loss_function=nn.MSELoss(reduction="sum")
+            self.log.info("loss_function","nn.MSELoss(reduction=sum)")
         self.log.write("model loading finish")
         self.set_optimizer()
     
@@ -212,7 +347,6 @@ class Au(object):
         self.log.method("Au.train_step")
         self.log.info("epoch_step_list",epoch_step_list)
         if lr_step_list!=None:
-            assert len(epoch_step_list)==len(lr_step_list)
             self.log.info("lr_step_list",lr_step_list)
         else:
             self.log.info("lr_step_list","default")
@@ -232,31 +366,23 @@ class Au(object):
             self.log.write("training on step:"+str(i+1)+" with lr:"+str(se_lr)+" ...")
             print("training on step:"+str(i+1)+" with lr:"+str(se_lr)+" ...")
             if self.train_type=="particle":
-                self.model,return_result,data_info_item=train(self.train_data,self.train_label,batch_size,epoch_step_list[i],self.model,self.device,self.optimizer,self.loss_function,True,self.test_list,{"acc":self.acc,"q":self.q,"model_file":self.modelfile},self.log,need_data_info)
+                self.model,return_result,data_info_item=train(self.train_data,self.train_label,batch_size,epoch_step_list[i],self.model,self.device,self.optimizer,self.loss_function,self.train_type,self.test_list,{"acc":self.acc,"q":self.q,"model_file":self.modelfile},self.log,need_data_info)
                 self.acc=return_result["acc"]
                 self.q=return_result["q"]
-                # acc_g,acc_p=test(self.test_list["test_data_list"],self.test_list["test_label_list"],self.test_list["test_type_list"],self.test_list["test_energy_list"],self.model,self.device,True,self.log)
-                # acc=(acc_g+acc_p)/2
-                # try:
-                #     q=acc_g/math.sqrt(1-acc_p)
-                # except:
-                #     q=acc_g/math.sqrt(1-acc_p+0.00001)
-                # res="acc_g:%f, acc_p:%f, acc:%f, q:%f" % (acc_g,acc_p,acc,q)
-                self.log.write("step "+str(i+1)+" finish")
-                # self.log.write(res)
-                print("step "+str(i+1)+" finish")
-                # print(res)
             elif self.train_type=="energy":
-                self.model,return_result,data_info_item=train(self.train_data,self.train_label,batch_size,epoch_step_list[i],self.model,self.device,self.optimizer,self.loss_function,False,self.test_list,{"l":self.l,"model_file":self.modelfile},self.log,need_data_info)
+                self.model,return_result,data_info_item=train(self.train_data,self.train_label,batch_size,epoch_step_list[i],self.model,self.device,self.optimizer,self.loss_function,self.train_type,self.test_list,{"l":self.l,"model_file":self.modelfile},self.log,need_data_info)
                 self.l=return_result["l"]
-                # l_g,l_p=test(self.test_list["test_data_list"],self.test_list["test_label_list"],self.test_list["test_type_list"],self.test_list["test_energy_list"],self.model,self.device,False,self.log)
-                # l=(l_g+l_p)/2
-                # res="l_g:%f, l_p:%f, l:%f" % (l_g,l_p,l)
-                self.log.write("step "+str(i+1)+" finish")
-                # self.log.write(res)
-                print("step "+str(i+1)+" finish")
-                # print(res)
+            elif self.train_type=="position":
+                self.model,return_result,data_info_item=train(self.train_data,self.train_label,batch_size,epoch_step_list[i],self.model,self.device,self.optimizer,self.loss_function,self.train_type,self.test_list,{"l":self.l,"l_0":self.l_0,"l_1":self.l_1,"model_file":self.modelfile},self.log,need_data_info)
+                self.l=return_result["l"]
+                self.l_0=return_result["l_0"]
+                self.l_1=return_result["l_1"]
+            elif self.train_type=="angle":
+                self.model,return_result,data_info_item=train(self.train_data,self.train_label,batch_size,epoch_step_list[i],self.model,self.device,self.optimizer,self.loss_function,self.train_type,self.test_list,{"l":self.l,"model_file":self.modelfile},self.log,need_data_info)
+                self.l=return_result["l"]
             
+            self.log.write("step "+str(i+1)+" finish")
+            print("step "+str(i+1)+" finish")
             if need_data_info:
                 data_info.append(data_info_item)
 
@@ -297,7 +423,7 @@ class Au(object):
     def test(self):
         self.log.method("test")
         if self.train_type=="particle":
-            gamma_eff,gamma_total,proton_eff,proton_total=test(self.test_list["test_data_list"],self.test_list["test_label_list"],self.test_list["test_type_list"],self.test_list["test_energy_list"],self.model,self.device,True,self.log)
+            gamma_eff,gamma_total,proton_eff,proton_total=test(self.test_list["test_data_list"],self.test_list["test_label_list"],self.test_list["test_type_list"],self.test_list["test_energy_list"],self.model,self.device,self.train_type,self.log)
             acc_g=gamma_eff/gamma_total
             acc_p=proton_eff/proton_total
             acc=(gamma_eff+proton_eff)/(gamma_total+proton_total)
@@ -308,10 +434,32 @@ class Au(object):
             self.log.write("test result with acc_g:"+str(acc_g)+", acc_p:"+str(acc_p)+", acc:"+str(acc)+", q:"+str(q))
             print("test result with acc_g:"+str(acc_g)+", acc_p:"+str(acc_p)+", acc:"+str(acc)+", q:"+str(q))
         elif self.train_type=="energy":
-            gamma_eff,gamma_total,proton_eff,proton_total=test(self.test_list["test_data_list"],self.test_list["test_label_list"],self.test_list["test_type_list"],self.test_list["test_energy_list"],self.model,self.device,False,self.log)
+            gamma_eff,gamma_total,proton_eff,proton_total=test(self.test_list["test_data_list"],self.test_list["test_label_list"],self.test_list["test_type_list"],self.test_list["test_energy_list"],self.model,self.device,self.train_type,self.log)
             l_g=gamma_eff/(gamma_total+0.0001)
             l_p=proton_eff/(proton_total+0.0001)
-            l=(gamma_eff+proton_eff)/(gamma_total+proton_total)
+            l=(gamma_eff+proton_eff)/(gamma_total+proton_total+0.0001)
+            self.log.write("test with loss_g:"+str(l_g)+", loss_p:"+str(l_p)+", loss:"+str(l))
+            print("test with loss_g:"+str(l_g)+", loss_p:"+str(l_p)+", loss:"+str(l))
+        elif self.train_type=="position":
+            gamma_eff,gamma_loss_0,gamma_loss_1,gamma_total,proton_eff,proton_loss_0,proton_loss_1,proton_total=test(self.test_list["test_data_list"],self.test_list["test_label_list"],self.test_list["test_type_list"],self.test_list["test_energy_list"],self.model,self.device,self.train_type,self.log)
+            l_g=gamma_eff/(gamma_total+0.0001)
+            l_g_0=gamma_loss_0/(gamma_total+0.0001)
+            l_g_1=gamma_loss_1/(gamma_total+0.0001)
+            l_p=proton_eff/(proton_total+0.0001)
+            l_p_0=proton_loss_0/(proton_total+0.0001)
+            l_p_1=proton_loss_1/(proton_total+0.0001)
+            l=(gamma_eff+proton_eff)/(gamma_total+proton_total+0.0001)
+            l_0=(gamma_loss_0+proton_loss_0)/(gamma_total+proton_total+0.0001)
+            l_1=(gamma_loss_1+proton_loss_1)/(gamma_total+proton_total+0.0001)
+            res_log="test with l_g:%f, l_g_0:%f, l_g_1:%f, l_p:%f, l_p_0:%f, l_p_1:%f, l:%f, l_0:%f, l_1:%f" % (l_g,l_g_0,l_g_1,l_p,l_p_0,l_p_1,l,l_0,l_1)
+            res_print="test with l_g:%f, l_g_0:%f, l_g_1:%f,\nl_p:%f, l_p_0:%f, l_p_1:%f,\nl:%f, l_0:%f, l_1:%f" % (l_g,l_g_0,l_g_1,l_p,l_p_0,l_p_1,l,l_0,l_1)
+            self.log.write(res_log)
+            print(res_print)
+        elif self.train_type=="angle":
+            gamma_eff,gamma_total,proton_eff,proton_total=test(self.test_list["test_data_list"],self.test_list["test_label_list"],self.test_list["test_type_list"],self.test_list["test_energy_list"],self.model,self.device,self.train_type,self.log)
+            l_g=gamma_eff/(gamma_total+0.0001)
+            l_p=proton_eff/(proton_total+0.0001)
+            l=(gamma_eff+proton_eff)/(gamma_total+proton_total+0.0001)
             self.log.write("test with loss_g:"+str(l_g)+", loss_p:"+str(l_p)+", loss:"+str(l))
             print("test with loss_g:"+str(l_g)+", loss_p:"+str(l_p)+", loss:"+str(l))
     

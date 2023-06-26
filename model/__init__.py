@@ -1,7 +1,7 @@
 from . import LinearNet
 from . import ResNet
 from . import ResNet_0315
-from . import LinearNet_Res
+from . import DenseNet
 from . import ResNet_34
 from . import ResNet_34_Self
 from . import ResNet_50
@@ -10,3 +10,7 @@ from . import MSDNet
 from . import DeepCore
 from . import InceptionNet
 from . import LinearResNet
+from . import GoogLeNet
+from . import LinearNetConv
+from . import PointNet
+from . import AngleNet

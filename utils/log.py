@@ -4,9 +4,6 @@ import os
 
 from utils.path import get_project_file_path
 
-def test():
-    return __name__
-
 class Log(object):
     def __init__(self,relative_current_file_name:str):
         self.timeStamp=str(int(time.time()))
