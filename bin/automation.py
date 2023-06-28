@@ -1,9 +1,11 @@
 import torch
 import torch.nn as nn
+from torch.utils.data import DataLoader, Dataset
 import math
 import os
 import pickle
 import multiprocessing
+import json
 
 from bin.dataTranslater import load_from_text_to_json
 from bin.modelInit import initializeModel
@@ -29,24 +31,44 @@ def multi_process_load_data(particle:str,energy:int,particle_number:int,allow_pi
         raise Exception("invalid train type")
     return data,label,particle_label_number,energy
 
+class GPDataset(Dataset):
+    def __init__(self, data, targets):
+        self.data = data
+        self.targets = targets
+    def __len__(self):
+        return len(self.targets)
+    def __getitem__(self, idx):
+        return self.data[idx], self.targets[idx]
+
+class GPDataset_energy(Dataset):
+    def __init__(self, data1, data2, targets):
+        self.data1 = data1
+        self.data2 = data2
+        self.targets = targets
+    def __len__(self):
+        return len(self.targets)
+    def __getitem__(self, idx):
+        return self.data1[idx], self.data2[idx], self.targets[idx]
+
 class Au(object):
     def __init__(
             self,gamma_energy_list:list,proton_energy_list:list,
             particle_number_gamma:int,particle_number_proton:int,
             allow_pic_number_list:list,
-            allow_min_pix_number:int,
+            allow_min_pix_number:bool=False,
             ignore_head_number:int=0,
             interval:float=0.8,
             pic_size:int=64,
+            batch_size:int=1,
             use_data_type:str=None,
             centering:bool=True,
             use_weight:bool=False,
             train_type:str="particle",
             use_loading_process:int=None,
-            use_gpu_number:int=None,
-            current_file_name:str="main.py"
+            current_file_name:str="main.py",
+            current_program_version:str="alpha-0.3.1"
     ):
-        log=Log(current_file_name)
+        log=Log(current_file_name,current_program_version)
         self.timeStamp=log.timeStamp
         log.info("pid",os.getpid())
         log.method("Au.__init__")
@@ -60,14 +82,29 @@ class Au(object):
         log.info("ignore_head_number",ignore_head_number)
         log.info("interval",interval)
         log.info("pic_size",pic_size)
+        log.info("batch_size",batch_size)
+        self.batch_size=batch_size
+        log.info("use_data_type",use_data_type)
         log.info("centering",centering)
+        log.info("use_weight",use_weight)
         log.info("train_type",train_type)
 
-        if use_gpu_number!=None:
-            os.environ["CUDA_VISIBLE_DEVICES"]=str(use_gpu_number)
-            log.info("SET CUDA DEVICE",use_gpu_number)
-        else:
+        with open(get_project_file_path("settings.json"),"r") as f:
+            self.settings=json.load(f)
+            f.close()
+
+        if self.settings["GPU"]["default"]:
             log.info("SET CUDA DEVICE","default")
+        else:
+            if self.settings["GPU"]["mainGPUNumber"]>=torch.cuda.device_count():
+                raise Exception("GPU index out of range")
+            log.info("SET CUDA DEVICE","user-defined")
+            log.info("SET CUDA MAIN DEVICE",self.settings["GPU"]["mainGPUNumber"])
+            if self.settings["GPU"]["trainGPUList"]["default"]:
+                log.info("SET CUDA TRAIN DEVICE","default : use_all")
+            else:
+                log.info("SET CUDA TRAIN DEVICE",self.settings["GPU"]["trainGPUList"]["specified"])
+
         if use_loading_process==None:
             log.info("use_loading_process","No_Multi_Process")
         else:
@@ -75,49 +112,9 @@ class Au(object):
 
         self.train_type=train_type
         self.pic_size=pic_size
-        self.train_data=None
-        self.train_label=None
+        train_data=None
+        train_label=None
         self.test_list={"test_data_list":[],"test_label_list":[],"test_type_list":[],"test_energy_list":[]}
-        
-        # log.write("using multi-process")
-        # pool=multiprocessing.Pool(use_loading_process)
-        # rets=[]
-        # for i in gamma_energy_list:
-        #     p=pool.apply_async(multi_process_load_data,args=("gamma",i,particle_number_gamma,allow_pic_number_list,allow_min_pix_number,ignore_head_number,pic_size,centering,train_type))
-        #     rets.append(p)
-        # for i in proton_energy_list:
-        #     p=pool.apply_async(multi_process_load_data,args=("proton",i,particle_number_proton,allow_pic_number_list,allow_min_pix_number,ignore_head_number,pic_size,centering,train_type))
-        #     rets.append(p)
-        # pool.close()
-        # pool.join()
-        
-        # log.write("data loading...")
-        # for p in rets:
-        #     data,label,particle_label_num,ene=p.get()
-        #     if particle_label_num==0:
-        #         print("gamma",ene,"loading finish")
-        #         log.write("gamma"+str(ene)+" loading finish")
-        #     elif particle_label_num==1:
-        #         print("proton",ene,"loading finish")
-        #         log.write("proton"+str(ene)+" loading finish")
-        #     else:
-        #         log.error("invalid particle label number")
-        #         raise Exception("invalid particle label number")
-
-        #     if self.train_data==None:
-        #         self.train_data=data[:int(interval*len(data))]
-        #     else:
-        #         self.train_data=torch.cat((self.train_data,data[:int(interval*len(data))]))
-        #     if self.train_label==None:
-        #         self.train_label=label[:int(interval*len(label))]
-        #     else:
-        #         self.train_label=torch.cat((self.train_label,label[:int(interval*len(label))]))
-            
-        #     self.test_list["test_data_list"].append(data[int(interval*len(data)):])
-        #     self.test_list["test_label_list"].append(label[int(interval*len(data)):])
-        #     self.test_list["test_type_list"].append(particle_label_num)
-        #     self.test_list["test_energy_list"].append(ene)
-        
         
         for i in gamma_energy_list:
             print(i)
@@ -132,37 +129,37 @@ class Au(object):
             else:
                 raise Exception("invalid train type")
 
-            if self.train_data==None:
+            if train_data==None:
                 if train_type=="particle":
-                    self.train_data=data[:int(interval*len(data))]
+                    train_data=data[:int(interval*len(data))]
                 elif train_type=="energy":
-                    self.train_data=[data[0][:int(interval*len(data[0]))],data[1][:int(interval*len(data[1]))]]
+                    train_data=[data[0][:int(interval*len(data[0]))],data[1][:int(interval*len(data[1]))]]
                 elif train_type=="position":
-                    self.train_data=data[:int(interval*len(data))]
-                    # self.train_data=[data[0][:int(interval*len(data[0]))],data[1][:int(interval*len(data[1]))]]
+                    train_data=data[:int(interval*len(data))]
+                    # train_data=[data[0][:int(interval*len(data[0]))],data[1][:int(interval*len(data[1]))]]
                 elif train_type=="angle":
-                    self.train_data=data[:int(interval*len(data))]
+                    train_data=data[:int(interval*len(data))]
             else:
                 if train_type=="particle":
-                    self.train_data=torch.cat((self.train_data,data[:int(interval*len(data))]))
+                    train_data=torch.cat((train_data,data[:int(interval*len(data))]))
                 elif train_type=="energy":
-                    self.train_data=[
-                        torch.cat((self.train_data[0],data[0][:int(interval*len(data[0]))])),
-                        torch.cat((self.train_data[1],data[1][:int(interval*len(data[1]))]))
+                    train_data=[
+                        torch.cat((train_data[0],data[0][:int(interval*len(data[0]))])),
+                        torch.cat((train_data[1],data[1][:int(interval*len(data[1]))]))
                     ]
                 elif train_type=="position":
-                    self.train_data=torch.cat((self.train_data,data[:int(interval*len(data))]))
-                    # self.train_data=[
-                    #     torch.cat((self.train_data[0],data[0][:int(interval*len(data[0]))])),
-                    #     torch.cat((self.train_data[1],data[1][:int(interval*len(data[1]))]))
+                    train_data=torch.cat((train_data,data[:int(interval*len(data))]))
+                    # train_data=[
+                    #     torch.cat((train_data[0],data[0][:int(interval*len(data[0]))])),
+                    #     torch.cat((train_data[1],data[1][:int(interval*len(data[1]))]))
                     # ]
                 elif train_type=="angle":
-                    self.train_data=torch.cat((self.train_data,data[:int(interval*len(data))]))
+                    train_data=torch.cat((train_data,data[:int(interval*len(data))]))
             
-            if self.train_label==None:
-                self.train_label=label[:int(interval*len(label))]
+            if train_label==None:
+                train_label=label[:int(interval*len(label))]
             else:
-                self.train_label=torch.cat((self.train_label,label[:int(interval*len(label))]))
+                train_label=torch.cat((train_label,label[:int(interval*len(label))]))
             
             if train_type=="particle":
                 self.test_list["test_data_list"].append(data[int(interval*len(data)):])
@@ -176,27 +173,6 @@ class Au(object):
             self.test_list["test_label_list"].append(label[int(interval*len(data)):])
             self.test_list["test_type_list"].append(0)
             self.test_list["test_energy_list"].append(i)
-
-            # if train_type=="energy":
-            #     data,label=load_data("gamma" if use_data_type==None else "gamma_"+use_data_type,i,particle_number_gamma,allow_pic_number_list,allow_min_pix_number,ignore_head_number,pic_size,"overlay",centering,use_weight,i/100,torch.float32,log)
-            # elif train_type=="particle":
-            #     data,label=load_data("gamma" if use_data_type==None else "gamma_"+use_data_type,i,particle_number_gamma,allow_pic_number_list,allow_min_pix_number,ignore_head_number,pic_size,"joint",centering,use_weight,0,torch.int64,log)
-            #     # data,label=load_data("gamma" if use_data_type==None else "gamma_"+use_data_type,i,particle_number_gamma,allow_pic_number_list,allow_min_pix_number,ignore_head_number,pic_size,"overlay",centering,use_weight,0,torch.int64,log)
-            # else:
-            #     raise Exception("invalid train_type")
-            
-            # if self.train_data==None:
-            #     self.train_data=data[:int(interval*len(data))]
-            # else:
-            #     self.train_data=torch.cat((self.train_data,data[:int(interval*len(data))]))
-            # if self.train_label==None:
-            #     self.train_label=label[:int(interval*len(label))]
-            # else:
-            #     self.train_label=torch.cat((self.train_label,label[:int(interval*len(label))]))
-            # self.test_list["test_data_list"].append(data[int(interval*len(data)):])
-            # self.test_list["test_label_list"].append(label[int(interval*len(data)):])
-            # self.test_list["test_type_list"].append(0)
-            # self.test_list["test_energy_list"].append(i)
     
         for i in proton_energy_list:
             print(i)
@@ -209,37 +185,37 @@ class Au(object):
             elif train_type=="angle":
                 data,label=load_data("proton" if use_data_type==None else "proton_"+use_data_type,i,particle_number_gamma,allow_pic_number_list,allow_min_pix_number,ignore_head_number,pic_size,train_type,centering,use_weight,None,None,log)
             
-            if self.train_data==None:
+            if train_data==None:
                 if train_type=="particle":
-                    self.train_data=data[:int(interval*len(data))]
+                    train_data=data[:int(interval*len(data))]
                 elif train_type=="energy":
-                    self.train_data=[data[0][:int(interval*len(data[0]))],data[1][:int(interval*len(data[1]))]]
+                    train_data=[data[0][:int(interval*len(data[0]))],data[1][:int(interval*len(data[1]))]]
                 elif train_type=="position":
-                    self.train_data=data[:int(interval*len(data))]
-                    # self.train_data=data[data[0][:int(interval*len(data[0]))],data[1][:int(interval*len(data[1]))]]
+                    train_data=data[:int(interval*len(data))]
+                    # train_data=data[data[0][:int(interval*len(data[0]))],data[1][:int(interval*len(data[1]))]]
                 elif train_type=="angle":
-                    self.train_data=data[:int(interval*len(data))]
+                    train_data=data[:int(interval*len(data))]
             else:
                 if train_type=="particle":
-                    self.train_data=torch.cat((self.train_data,data[:int(interval*len(data))]))
+                    train_data=torch.cat((train_data,data[:int(interval*len(data))]))
                 elif train_type=="energy":
-                    self.train_data=[
-                        torch.cat((self.train_data[0],data[0][:int(interval*len(data[0]))])),
-                        torch.cat((self.train_data[1],data[1][:int(interval*len(data[1]))]))
+                    train_data=[
+                        torch.cat((train_data[0],data[0][:int(interval*len(data[0]))])),
+                        torch.cat((train_data[1],data[1][:int(interval*len(data[1]))]))
                     ]
                 elif train_type=="position":
-                    self.train_data=torch.cat((self.train_data,data[:int(interval*len(data))]))
-                    # self.train_data=[
-                    #     torch.cat((self.train_data[0],data[0][:int(interval*len(data[0]))])),
-                    #     torch.cat((self.train_data[1],data[1][:int(interval*len(data[1]))]))
+                    train_data=torch.cat((train_data,data[:int(interval*len(data))]))
+                    # train_data=[
+                    #     torch.cat((train_data[0],data[0][:int(interval*len(data[0]))])),
+                    #     torch.cat((train_data[1],data[1][:int(interval*len(data[1]))]))
                     # ]
                 elif train_type=="angle":
-                    self.train_data=torch.cat((self.train_data,data[:int(interval*len(data))]))
+                    train_data=torch.cat((train_data,data[:int(interval*len(data))]))
             
-            if self.train_label==None:
-                self.train_label=label[:int(interval*len(label))]
+            if train_label==None:
+                train_label=label[:int(interval*len(label))]
             else:
-                self.train_label=torch.cat((self.train_label,label[:int(interval*len(label))]))
+                train_label=torch.cat((train_label,label[:int(interval*len(label))]))
             
             if train_type=="particle":
                 self.test_list["test_data_list"].append(data[int(interval*len(data)):])
@@ -254,19 +230,14 @@ class Au(object):
             self.test_list["test_type_list"].append(1)
             self.test_list["test_energy_list"].append(i)
 
-
-            # if self.train_data==None:
-            #     self.train_data=data[:int(interval*len(data))]
-            # else:
-            #     self.train_data=torch.cat((self.train_data,data[:int(interval*len(data))]))
-            # if self.train_label==None:
-            #     self.train_label=label[:int(interval*len(label))]
-            # else:
-            #     self.train_label=torch.cat((self.train_label,label[:int(interval*len(label))]))
-            # self.test_list["test_data_list"].append(data[int(interval*len(data)):])
-            # self.test_list["test_label_list"].append(label[int(interval*len(data)):])
-            # self.test_list["test_type_list"].append(1)
-            # self.test_list["test_energy_list"].append(i)
+        # 构建训练集DataLoader
+        if train_type=="energy":
+            gp_dataset=GPDataset_energy(train_data[0],train_data[1],train_label)
+        else:
+            print(train_data.shape,train_label.shape)
+            gp_dataset=GPDataset(train_data,train_label)
+            print(len(gp_dataset))
+        self.dataLoader=DataLoader(gp_dataset,batch_size=batch_size,shuffle=True)
 
         log.write("data loading finish")
         self.log=log
@@ -293,10 +264,25 @@ class Au(object):
                 raise Exception("invalid train type")
             self.log.write("model initializing finish")
         self.log.write("model loading...")
-        self.device=torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        
         self.modelfile=get_project_file_path("data/model/"+modelName)
         state=torch.load(self.modelfile)
-        self.model=state['model'].to(self.device)
+
+        # self.device=torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        # self.model=state['model'].to(self.device)
+        # self.optimizer=torch.optim.AdamW(self.model.parameters(),8e-6)
+        # self.model=nn.DataParallel(self.model)
+
+        if self.settings["GPU"]["default"]:
+            self.device=torch.device("cuda:"+str(self.settings["GPU"]["mainGPUNumber"]) if torch.cuda.is_available() else 'cpu')
+            self.model=state['model'].to(self.device)
+        else:
+            self.device=torch.device("cuda:"+str(self.settings["GPU"]["mainGPUNumber"]))
+            if self.settings["GPU"]["trainGPUList"]["default"]:
+                self.model=nn.DataParallel(state['model'].to(self.device),output_device=self.settings["GPU"]["mainGPUNumber"])
+            else:
+                self.model=nn.DataParallel(state['model'].to(self.device),device_ids=self.settings["GPU"]["trainGPUList"]["specified"],output_device=self.settings["GPU"]["mainGPUNumber"])
+
         if self.train_type=="particle":
             self.acc=state['acc']
             self.q=state['q']
@@ -341,18 +327,18 @@ class Au(object):
         self.log.info("optimizer_lr",lr)
         self.log.write("optimizer setting...")
         self.optimizer=torch.optim.AdamW(self.model.parameters(),lr)
+        # self.model=nn.DataParallel(self.model)
         self.log.write("optimizer setting finish")
 
-    def train_step(self,epoch_step_list:list,lr_step_list:list=None,batch_size:int=1,need_data_info:bool=False):
+    def train_step(self,epoch_step_list:list,lr_step_list:list=None,need_data_info:bool=False):
         self.log.method("Au.train_step")
         self.log.info("epoch_step_list",epoch_step_list)
         if lr_step_list!=None:
             self.log.info("lr_step_list",lr_step_list)
         else:
             self.log.info("lr_step_list","default")
-        self.log.info("batch_size",batch_size)
-        # self.log.info("auto_save",auto_save)
 
+        self.log.info("need_data_info",need_data_info)
         if need_data_info:
             data_info=[]
 
@@ -366,19 +352,19 @@ class Au(object):
             self.log.write("training on step:"+str(i+1)+" with lr:"+str(se_lr)+" ...")
             print("training on step:"+str(i+1)+" with lr:"+str(se_lr)+" ...")
             if self.train_type=="particle":
-                self.model,return_result,data_info_item=train(self.train_data,self.train_label,batch_size,epoch_step_list[i],self.model,self.device,self.optimizer,self.loss_function,self.train_type,self.test_list,{"acc":self.acc,"q":self.q,"model_file":self.modelfile},self.log,need_data_info)
+                self.model,return_result,data_info_item=train(self.dataLoader,self.batch_size,epoch_step_list[i],self.model,self.device,self.optimizer,self.loss_function,self.train_type,self.test_list,{"acc":self.acc,"q":self.q,"model_file":self.modelfile},self.log,need_data_info)
                 self.acc=return_result["acc"]
                 self.q=return_result["q"]
             elif self.train_type=="energy":
-                self.model,return_result,data_info_item=train(self.train_data,self.train_label,batch_size,epoch_step_list[i],self.model,self.device,self.optimizer,self.loss_function,self.train_type,self.test_list,{"l":self.l,"model_file":self.modelfile},self.log,need_data_info)
+                self.model,return_result,data_info_item=train(self.dataLoader,self.batch_size,epoch_step_list[i],self.model,self.device,self.optimizer,self.loss_function,self.train_type,self.test_list,{"l":self.l,"model_file":self.modelfile},self.log,need_data_info)
                 self.l=return_result["l"]
             elif self.train_type=="position":
-                self.model,return_result,data_info_item=train(self.train_data,self.train_label,batch_size,epoch_step_list[i],self.model,self.device,self.optimizer,self.loss_function,self.train_type,self.test_list,{"l":self.l,"l_0":self.l_0,"l_1":self.l_1,"model_file":self.modelfile},self.log,need_data_info)
+                self.model,return_result,data_info_item=train(self.dataLoader,self.batch_size,epoch_step_list[i],self.model,self.device,self.optimizer,self.loss_function,self.train_type,self.test_list,{"l":self.l,"l_0":self.l_0,"l_1":self.l_1,"model_file":self.modelfile},self.log,need_data_info)
                 self.l=return_result["l"]
                 self.l_0=return_result["l_0"]
                 self.l_1=return_result["l_1"]
             elif self.train_type=="angle":
-                self.model,return_result,data_info_item=train(self.train_data,self.train_label,batch_size,epoch_step_list[i],self.model,self.device,self.optimizer,self.loss_function,self.train_type,self.test_list,{"l":self.l,"model_file":self.modelfile},self.log,need_data_info)
+                self.model,return_result,data_info_item=train(self.dataLoader,self.batch_size,epoch_step_list[i],self.model,self.device,self.optimizer,self.loss_function,self.train_type,self.test_list,{"l":self.l,"model_file":self.modelfile},self.log,need_data_info)
                 self.l=return_result["l"]
             
             self.log.write("step "+str(i+1)+" finish")

@@ -7,11 +7,27 @@ from utils.path import get_project_file_path
 from utils.locationTransform import coordinate_transform
 from utils.log import Log
 
-def load_data(particle:str,energy:int,total_number:int,allow_pic_number_list:list=[4,3,2,1],allow_min_pix_number:int=None,ignore_number:int=0,pic_size:int=64,train_type:str="particle",centering:bool=True,use_weight:bool=False,label=None,label_dtype=None,log:Log=None):
+def load_data(particle:str,energy:int,total_number:int,allow_pic_number_list:list=[4,3,2,1],allow_min_pix_number:bool=False,ignore_number:int=0,pic_size:int=64,train_type:str="particle",centering:bool=True,use_weight:bool=False,label=None,label_dtype=None,log:Log=None):
     jsonFileName=get_project_file_path("data/origin/"+particle+"_"+str(energy)+".json")
     with open(jsonFileName,'r') as f:
         jsonData=json.load(f)
         f.close()
+
+    min_pix=0
+    if allow_min_pix_number:
+        with open(get_project_file_path("settings.json"),"r") as f:
+            settings=json.load(f)
+            f.close()
+        if settings["loading_min_pix"]["uniformThreshold"]:
+            if particle[0:5]=="gamma":
+                min_pix=settings["loading_min_pix"]["gammaUniform"]
+            elif particle[0:6]=="proton":
+                min_pix=settings["loading_min_pix"]["protonUniform"]
+            else:
+                raise Exception("invalid particle type")
+        else:
+            if str(energy) in settings["loading_min_pix"][particle].keys():
+                min_pix=settings["loading_min_pix"][particle][str(energy)]
 
     data_tensor=None
     label_tensor=None
@@ -37,19 +53,10 @@ def load_data(particle:str,energy:int,total_number:int,allow_pic_number_list:lis
                     ] for i in range(4)
                 ],dtype=torch.float32)
                 fin_energy=torch.unsqueeze(fin_energy,dim=0)
-            # elif train_type=="position":
-            #     fin_energy=torch.tensor([
-            #         [
-            #             pic_item["info"]["_position"][str(i+1)][0]/100,pic_item["info"]["_position"][str(i+1)][1]/100,
-            #             # pic_item["info"]["_position_rebuild"][str(i+1)][0],pic_item["info"]["_position_rebuild"][str(i+1)][1]
-            #         ] for i in range(4)
-            #     ],dtype=torch.float32)
-            #     fin_energy=torch.unsqueeze(fin_energy,dim=0)
 
-
-            if allow_min_pix_number:
+            if min_pix!=0:
                 pic_number=len(pic_item["1"])+len(pic_item["2"])+len(pic_item["3"])+len(pic_item["4"])
-                if pic_number<allow_min_pix_number:
+                if pic_number<min_pix:
                     continue
             if train_type=="angle":
                 temp_tensor=torch.zeros((pic_size,pic_size),dtype=torch.float32)

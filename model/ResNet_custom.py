@@ -19,7 +19,7 @@ class Residual(nn.Module):
         Y2=self.features(X)
         return  F.relu(Y1+Y2)
 
-class PointNet(nn.Module):
+class ResNet_custom(nn.Module):
     def __init__(self,input_channels,input_size_x,input_size_y,output_size):
         super().__init__()
         self.classifer=nn.Sequential(

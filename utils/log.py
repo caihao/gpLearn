@@ -5,13 +5,14 @@ import os
 from utils.path import get_project_file_path
 
 class Log(object):
-    def __init__(self,relative_current_file_name:str):
+    def __init__(self,relative_current_file_name:str,current_program_version:str="long-term-support"):
         self.timeStamp=str(int(time.time()))
         self.log_file_name=get_project_file_path("data/log/"+self.timeStamp+".txt")
         with open(self.log_file_name,'w') as f:
             f=open(self.log_file_name,'w')
             f.write("# GP project standard log file\n\n")
             f.write("# process start on "+datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")+'\n')
+            f.write("# program version: "+current_program_version+"\n")
             f.write("# run file name: "+relative_current_file_name+'\n')
             f.write("\n# file content:\n")
             f.write("###file content start###\n")
