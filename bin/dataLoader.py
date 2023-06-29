@@ -5,29 +5,29 @@ import math
 
 from utils.path import get_project_file_path
 from utils.locationTransform import coordinate_transform
-from utils.log import Log
 
-def load_data(particle:str,energy:int,total_number:int,allow_pic_number_list:list=[4,3,2,1],allow_min_pix_number:bool=False,ignore_number:int=0,pic_size:int=64,train_type:str="particle",centering:bool=True,use_weight:bool=False,label=None,label_dtype=None,log:Log=None):
+def load_data(particle:str,energy:int,total_number:int,allow_pic_number_list:list=[4,3,2,1],limit_min_pix_number:bool=False,ignore_number:int=0,pic_size:int=64,train_type:str="particle",centering:bool=True,use_weight:bool=False,label=None,label_dtype=None):
     jsonFileName=get_project_file_path("data/origin/"+particle+"_"+str(energy)+".json")
     with open(jsonFileName,'r') as f:
         jsonData=json.load(f)
         f.close()
 
     min_pix=0
-    if allow_min_pix_number:
+    if limit_min_pix_number:
         with open(get_project_file_path("settings.json"),"r") as f:
             settings=json.load(f)
             f.close()
-        if settings["loading_min_pix"]["uniformThreshold"]:
-            if particle[0:5]=="gamma":
-                min_pix=settings["loading_min_pix"]["gammaUniform"]
-            elif particle[0:6]=="proton":
-                min_pix=settings["loading_min_pix"]["protonUniform"]
-            else:
-                raise Exception("invalid particle type")
+        if particle[0:5]=="gamma":
+            par="gamma"
+        elif particle[0:6]=="proton":
+            par="proton"
         else:
-            if str(energy) in settings["loading_min_pix"][particle].keys():
-                min_pix=settings["loading_min_pix"][particle][str(energy)]
+            raise Exception("invalid particle type")
+        if settings["loading_min_pix"]["uniformThreshold"]:
+            min_pix=settings["loading_min_pix"][par+"Uniform"]
+        else:
+            if str(energy) in settings["loading_min_pix"][par].keys():
+                min_pix=settings["loading_min_pix"][par][str(energy)]
 
     data_tensor=None
     label_tensor=None
@@ -129,9 +129,9 @@ def load_data(particle:str,energy:int,total_number:int,allow_pic_number_list:lis
             if current_number>=total_number:
                 is_break=True
                 break
-    print(particle+str(energy)+" loading finish with length: "+str(current_number))
-    if log!=None:
-        log.write(particle+str(energy)+" loading finish with length: "+str(current_number))
+    # print(particle+str(energy)+" loading finish with length: "+str(current_number))
+    # if log!=None:
+    #     log.write(particle+str(energy)+" loading finish with length: "+str(current_number))
     
     if train_type=="position":
         return data_tensor,label_tensor

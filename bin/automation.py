@@ -14,8 +14,9 @@ from bin.train import train
 from bin.test import test
 from utils.path import get_project_file_path
 from utils.log import Log
+from utils.leftTime import LeftTime
 
-def multi_process_load_data(particle:str,energy:int,particle_number:int,allow_pic_number_list:list,allow_min_pix_number:int,ignore_head_number:int,pic_size:int,centering:bool,train_type:str):
+def multi_process_load_data(particle:str,energy:int,particle_number:int,allow_pic_number_list:list,limit_min_pix_number:int,ignore_head_number:int,pic_size:int,centering:bool,train_type:str):
     print(particle,energy,"start...")
     if particle=="gamma":
         particle_label_number=0
@@ -24,9 +25,9 @@ def multi_process_load_data(particle:str,energy:int,particle_number:int,allow_pi
     else:
         raise Exception("invalid particle type")
     if train_type=="energy":
-        data,label=load_data(particle,energy,particle_number,allow_pic_number_list,allow_min_pix_number,ignore_head_number,pic_size,centering,energy/100,torch.float32)
+        data,label=load_data(particle,energy,particle_number,allow_pic_number_list,limit_min_pix_number,ignore_head_number,pic_size,centering,energy/100,torch.float32)
     elif train_type=="particle":
-        data,label=load_data(particle,energy,particle_number,allow_pic_number_list,allow_min_pix_number,ignore_head_number,pic_size,centering,particle_label_number,torch.int64)
+        data,label=load_data(particle,energy,particle_number,allow_pic_number_list,limit_min_pix_number,ignore_head_number,pic_size,centering,particle_label_number,torch.int64)
     else:
         raise Exception("invalid train type")
     return data,label,particle_label_number,energy
@@ -51,11 +52,11 @@ class GPDataset_energy(Dataset):
         return self.data1[idx], self.data2[idx], self.targets[idx]
 
 class Au(object):
-    def __init__(
-            self,gamma_energy_list:list,proton_energy_list:list,
+    def __init__(self,
+            gamma_energy_list:list,proton_energy_list:list,
             particle_number_gamma:int,particle_number_proton:int,
             allow_pic_number_list:list,
-            allow_min_pix_number:bool=False,
+            limit_min_pix_number:bool=False,
             ignore_head_number:int=0,
             interval:float=0.8,
             pic_size:int=64,
@@ -66,7 +67,7 @@ class Au(object):
             train_type:str="particle",
             use_loading_process:int=None,
             current_file_name:str="main.py",
-            current_program_version:str="alpha-0.3.1"
+            current_program_version:str="alpha-0.3.3"
     ):
         log=Log(current_file_name,current_program_version)
         self.timeStamp=log.timeStamp
@@ -78,7 +79,7 @@ class Au(object):
         log.info("particle_number_gamma",particle_number_gamma)
         log.info("particle_number_proton",particle_number_proton)
         log.info("allow_pic_number_list",allow_pic_number_list)
-        log.info("allow_min_pix_number",allow_min_pix_number)
+        log.info("limit_min_pix_number",limit_min_pix_number)
         log.info("ignore_head_number",ignore_head_number)
         log.info("interval",interval)
         log.info("pic_size",pic_size)
@@ -93,22 +94,23 @@ class Au(object):
             self.settings=json.load(f)
             f.close()
 
-        if self.settings["GPU"]["default"]:
-            log.info("SET CUDA DEVICE","default")
-        else:
+        log.info("USE MULTIPLE GPU",self.settings["GPU"]["multiple"])
+        log.info("SET CUDA DEVICE",self.settings["GPU"]["mainGPUIndex"])
+        if self.settings["GPU"]["multiple"]:
             if self.settings["GPU"]["mainGPUNumber"]>=torch.cuda.device_count():
                 raise Exception("GPU index out of range")
-            log.info("SET CUDA DEVICE","user-defined")
-            log.info("SET CUDA MAIN DEVICE",self.settings["GPU"]["mainGPUNumber"])
-            if self.settings["GPU"]["trainGPUList"]["default"]:
-                log.info("SET CUDA TRAIN DEVICE","default : use_all")
-            else:
-                log.info("SET CUDA TRAIN DEVICE",self.settings["GPU"]["trainGPUList"]["specified"])
+            for index in self.settings["GPU"]["multipleGPUIndex"]:
+                if index >=torch.cuda.device_count():
+                    raise Exception("Multiple GPU index out of range")
+            log.info("MULTIPLE GPU INDEX",self.settings["GPU"]["multipleGPUIndex"])
 
         if use_loading_process==None:
             log.info("use_loading_process","No_Multi_Process")
         else:
             log.info("use_loading_process",use_loading_process)
+
+        self.lt=LeftTime()
+        self.lt.startLoading(len(gamma_energy_list)*particle_number_gamma+len(proton_energy_list)*particle_number_proton)
 
         self.train_type=train_type
         self.pic_size=pic_size
@@ -117,15 +119,14 @@ class Au(object):
         self.test_list={"test_data_list":[],"test_label_list":[],"test_type_list":[],"test_energy_list":[]}
         
         for i in gamma_energy_list:
-            print(i)
             if train_type=="particle":
-                data,label=load_data("gamma" if use_data_type==None else "gamma_"+use_data_type,i,particle_number_gamma,allow_pic_number_list,allow_min_pix_number,ignore_head_number,pic_size,train_type,centering,use_weight,0,torch.int64,log)
+                data,label,final_length=load_data("gamma" if use_data_type==None else "gamma_"+use_data_type,i,particle_number_gamma,allow_pic_number_list,limit_min_pix_number,ignore_head_number,pic_size,train_type,centering,use_weight,0,torch.int64)
             elif train_type=="energy":
-                data,label=load_data("gamma" if use_data_type==None else "gamma_"+use_data_type,i,particle_number_gamma,allow_pic_number_list,allow_min_pix_number,ignore_head_number,pic_size,train_type,centering,use_weight,i/100,torch.float32,log)
+                data,label,final_length=load_data("gamma" if use_data_type==None else "gamma_"+use_data_type,i,particle_number_gamma,allow_pic_number_list,limit_min_pix_number,ignore_head_number,pic_size,train_type,centering,use_weight,i/100,torch.float32)
             elif train_type=="position":
-                data,label=load_data("gamma" if use_data_type==None else "gamma_"+use_data_type,i,particle_number_gamma,allow_pic_number_list,allow_min_pix_number,ignore_head_number,pic_size,train_type,centering,use_weight,None,None,log)
+                data,label,final_length=load_data("gamma" if use_data_type==None else "gamma_"+use_data_type,i,particle_number_gamma,allow_pic_number_list,limit_min_pix_number,ignore_head_number,pic_size,train_type,centering,use_weight,None,None)
             elif train_type=="angle":
-                data,label=load_data("gamma" if use_data_type==None else "gamma_"+use_data_type,i,particle_number_gamma,allow_pic_number_list,allow_min_pix_number,ignore_head_number,pic_size,train_type,centering,use_weight,None,None,log)
+                data,label,final_length=load_data("gamma" if use_data_type==None else "gamma_"+use_data_type,i,particle_number_gamma,allow_pic_number_list,limit_min_pix_number,ignore_head_number,pic_size,train_type,centering,use_weight,None,None)
             else:
                 raise Exception("invalid train type")
 
@@ -173,17 +174,24 @@ class Au(object):
             self.test_list["test_label_list"].append(label[int(interval*len(data)):])
             self.test_list["test_type_list"].append(0)
             self.test_list["test_energy_list"].append(i)
-    
+
+            hms,da,completion=self.lt.loadLeftTime(final_length,particle_number_gamma)
+            particle="gamma" if use_data_type==None else "gamma_"+use_data_type
+            print(particle+str(i)+" loading finish with length: "+str(final_length)+" (pre set: "+str(particle_number_gamma)+")")
+            print("Loading ("+completion+"%): estimated remaining time: "+hms+", estimated completion time: "+da)
+            log.write(particle+str(i)+" loading finish with length: "+str(particle_number_gamma))
+            log.write("Loading ("+completion+"%): estimated remaining time: "+hms+", estimated completion time: "+da)
+
+
         for i in proton_energy_list:
-            print(i)
             if train_type=="particle":
-                data,label=load_data("proton" if use_data_type==None else "proton_"+use_data_type,i,particle_number_proton,allow_pic_number_list,allow_min_pix_number,ignore_head_number,pic_size,train_type,centering,use_weight,1,torch.int64,log)
+                data,label,final_length=load_data("proton" if use_data_type==None else "proton_"+use_data_type,i,particle_number_proton,allow_pic_number_list,limit_min_pix_number,ignore_head_number,pic_size,train_type,centering,use_weight,1,torch.int64)
             elif train_type=="energy":
-                data,label=load_data("proton" if use_data_type==None else "proton_"+use_data_type,i,particle_number_proton,allow_pic_number_list,allow_min_pix_number,ignore_head_number,pic_size,train_type,centering,use_weight,i/100,torch.float32,log)
+                data,label,final_length=load_data("proton" if use_data_type==None else "proton_"+use_data_type,i,particle_number_proton,allow_pic_number_list,limit_min_pix_number,ignore_head_number,pic_size,train_type,centering,use_weight,i/100,torch.float32)
             elif train_type=="position":
-                data,label=load_data("proton" if use_data_type==None else "proton_"+use_data_type,i,particle_number_gamma,allow_pic_number_list,allow_min_pix_number,ignore_head_number,pic_size,train_type,centering,use_weight,None,None,log)
+                data,label,final_length=load_data("proton" if use_data_type==None else "proton_"+use_data_type,i,particle_number_gamma,allow_pic_number_list,limit_min_pix_number,ignore_head_number,pic_size,train_type,centering,use_weight,None,None)
             elif train_type=="angle":
-                data,label=load_data("proton" if use_data_type==None else "proton_"+use_data_type,i,particle_number_gamma,allow_pic_number_list,allow_min_pix_number,ignore_head_number,pic_size,train_type,centering,use_weight,None,None,log)
+                data,label,final_length=load_data("proton" if use_data_type==None else "proton_"+use_data_type,i,particle_number_gamma,allow_pic_number_list,limit_min_pix_number,ignore_head_number,pic_size,train_type,centering,use_weight,None,None)
             
             if train_data==None:
                 if train_type=="particle":
@@ -230,15 +238,22 @@ class Au(object):
             self.test_list["test_type_list"].append(1)
             self.test_list["test_energy_list"].append(i)
 
+            hms,da,completion=self.lt.loadLeftTime(final_length,particle_number_proton)
+            particle="proton" if use_data_type==None else "proton_"+use_data_type
+            print(particle+str(i)+" loading finish with length: "+str(final_length)+" (pre set: "+str(particle_number_proton)+")")
+            print("Loading ("+completion+"%): estimated remaining time: "+hms+", estimated completion time: "+da)
+            log.write(particle+str(i)+" loading finish with length: "+str(particle_number_gamma))
+            log.write("Loading ("+completion+"%): estimated remaining time: "+hms+", estimated completion time: "+da)
+
         # 构建训练集DataLoader
         if train_type=="energy":
             gp_dataset=GPDataset_energy(train_data[0],train_data[1],train_label)
         else:
-            print(train_data.shape,train_label.shape)
             gp_dataset=GPDataset(train_data,train_label)
-            print(len(gp_dataset))
         self.dataLoader=DataLoader(gp_dataset,batch_size=batch_size,shuffle=True)
 
+        self.lt.endLoading()
+        print("data loading finish")
         log.write("data loading finish")
         self.log=log
 
@@ -273,15 +288,12 @@ class Au(object):
         # self.optimizer=torch.optim.AdamW(self.model.parameters(),8e-6)
         # self.model=nn.DataParallel(self.model)
 
-        if self.settings["GPU"]["default"]:
-            self.device=torch.device("cuda:"+str(self.settings["GPU"]["mainGPUNumber"]) if torch.cuda.is_available() else 'cpu')
-            self.model=state['model'].to(self.device)
+        if self.settings["GPU"]["multiple"]:
+            self.device=torch.device("cuda:"+str(self.settings["GPU"]["mainGPUIndex"]))
+            self.model=nn.DataParallel(state['model'].to(self.device),device_ids=self.settings["GPU"]["multipleGPUIndex"],output_device=self.settings["GPU"]["mainGPUIndex"])
         else:
-            self.device=torch.device("cuda:"+str(self.settings["GPU"]["mainGPUNumber"]))
-            if self.settings["GPU"]["trainGPUList"]["default"]:
-                self.model=nn.DataParallel(state['model'].to(self.device),output_device=self.settings["GPU"]["mainGPUNumber"])
-            else:
-                self.model=nn.DataParallel(state['model'].to(self.device),device_ids=self.settings["GPU"]["trainGPUList"]["specified"],output_device=self.settings["GPU"]["mainGPUNumber"])
+            self.device=torch.device("cuda:"+str(self.settings["GPU"]["mainGPUIndex"]) if torch.cuda.is_available() else 'cpu')
+            self.model=state['model'].to(self.device)
 
         if self.train_type=="particle":
             self.acc=state['acc']
@@ -342,6 +354,7 @@ class Au(object):
         if need_data_info:
             data_info=[]
 
+        self.lt.startTraining(len(self.dataLoader)*self.batch_size,sum(epoch_step_list))
         for i in range(len(epoch_step_list)):
             if lr_step_list!=None:
                 self.set_optimizer(lr_step_list[i])
@@ -352,19 +365,19 @@ class Au(object):
             self.log.write("training on step:"+str(i+1)+" with lr:"+str(se_lr)+" ...")
             print("training on step:"+str(i+1)+" with lr:"+str(se_lr)+" ...")
             if self.train_type=="particle":
-                self.model,return_result,data_info_item=train(self.dataLoader,self.batch_size,epoch_step_list[i],self.model,self.device,self.optimizer,self.loss_function,self.train_type,self.test_list,{"acc":self.acc,"q":self.q,"model_file":self.modelfile},self.log,need_data_info)
+                self.model,return_result,data_info_item=train(self.dataLoader,self.batch_size,epoch_step_list[i],self.model,self.device,self.optimizer,self.loss_function,self.train_type,self.test_list,{"acc":self.acc,"q":self.q,"model_file":self.modelfile},self.log,need_data_info,self.lt)
                 self.acc=return_result["acc"]
                 self.q=return_result["q"]
             elif self.train_type=="energy":
-                self.model,return_result,data_info_item=train(self.dataLoader,self.batch_size,epoch_step_list[i],self.model,self.device,self.optimizer,self.loss_function,self.train_type,self.test_list,{"l":self.l,"model_file":self.modelfile},self.log,need_data_info)
+                self.model,return_result,data_info_item=train(self.dataLoader,self.batch_size,epoch_step_list[i],self.model,self.device,self.optimizer,self.loss_function,self.train_type,self.test_list,{"l":self.l,"model_file":self.modelfile},self.log,need_data_info,self.lt)
                 self.l=return_result["l"]
             elif self.train_type=="position":
-                self.model,return_result,data_info_item=train(self.dataLoader,self.batch_size,epoch_step_list[i],self.model,self.device,self.optimizer,self.loss_function,self.train_type,self.test_list,{"l":self.l,"l_0":self.l_0,"l_1":self.l_1,"model_file":self.modelfile},self.log,need_data_info)
+                self.model,return_result,data_info_item=train(self.dataLoader,self.batch_size,epoch_step_list[i],self.model,self.device,self.optimizer,self.loss_function,self.train_type,self.test_list,{"l":self.l,"l_0":self.l_0,"l_1":self.l_1,"model_file":self.modelfile},self.log,need_data_info,self.lt)
                 self.l=return_result["l"]
                 self.l_0=return_result["l_0"]
                 self.l_1=return_result["l_1"]
             elif self.train_type=="angle":
-                self.model,return_result,data_info_item=train(self.dataLoader,self.batch_size,epoch_step_list[i],self.model,self.device,self.optimizer,self.loss_function,self.train_type,self.test_list,{"l":self.l,"model_file":self.modelfile},self.log,need_data_info)
+                self.model,return_result,data_info_item=train(self.dataLoader,self.batch_size,epoch_step_list[i],self.model,self.device,self.optimizer,self.loss_function,self.train_type,self.test_list,{"l":self.l,"model_file":self.modelfile},self.log,need_data_info,self.lt)
                 self.l=return_result["l"]
             
             self.log.write("step "+str(i+1)+" finish")
@@ -372,33 +385,10 @@ class Au(object):
             if need_data_info:
                 data_info.append(data_info_item)
 
-            # if self.train_type=="particle":
-            #     print("test result with acc_g:"+str(acc_g)+", acc_p:"+str(acc_p)+", acc:"+str(acc)+", q:"+str(q))
-            #     if acc>=self.acc and q>=self.q:
-            #         torch.save({'model':self.model,'acc':acc,'q':q},self.modelfile)
-            #         self.acc=acc
-            #         self.q=q
-            #         self.log.write("model update")
-            #         print("model update")
-            #     else:
-            #         self.log.write("model continue...")
-            #         print("model continue...")
-            # elif self.train_type=="energy":
-            #     print("test with loss:"+str(l))
-            #     if l<=self.l or self.l==0:
-            #         torch.save({'model':self.model,'l':l},self.modelfile)
-            #         self.l=l
-            #         self.log.write("model update")
-            #         print("model update")
-            #     else:
-            #         self.log.write("model continue...")
-            #         print("model continue...")
-            # if auto_save:
-            #     
-            # else:
-            #     self.log.write("auto_save switch is off")
-            #     print("auto_save switch is off")
-
+        hms,da=self.lt.endTraining()
+        print("Training finish! Used time: "+hms+", end time: "+da)
+        self.log.write("Training finish! Used time: "+hms+", end time: "+da)
+       
         if need_data_info:
             with open(get_project_file_path("data/info/"+self.timeStamp+".data"),"wb") as f:
                 pickle.dump(data_info,f)
@@ -409,7 +399,7 @@ class Au(object):
     def test(self):
         self.log.method("test")
         if self.train_type=="particle":
-            gamma_eff,gamma_total,proton_eff,proton_total=test(self.test_list["test_data_list"],self.test_list["test_label_list"],self.test_list["test_type_list"],self.test_list["test_energy_list"],self.model,self.device,self.train_type,self.log)
+            gamma_eff,gamma_total,proton_eff,proton_total=test(self.test_list["test_data_list"],self.test_list["test_label_list"],self.test_list["test_type_list"],self.test_list["test_energy_list"],self.model,self.device,self.train_type,self.log,None)
             acc_g=gamma_eff/gamma_total
             acc_p=proton_eff/proton_total
             acc=(gamma_eff+proton_eff)/(gamma_total+proton_total)
@@ -420,14 +410,14 @@ class Au(object):
             self.log.write("test result with acc_g:"+str(acc_g)+", acc_p:"+str(acc_p)+", acc:"+str(acc)+", q:"+str(q))
             print("test result with acc_g:"+str(acc_g)+", acc_p:"+str(acc_p)+", acc:"+str(acc)+", q:"+str(q))
         elif self.train_type=="energy":
-            gamma_eff,gamma_total,proton_eff,proton_total=test(self.test_list["test_data_list"],self.test_list["test_label_list"],self.test_list["test_type_list"],self.test_list["test_energy_list"],self.model,self.device,self.train_type,self.log)
+            gamma_eff,gamma_total,proton_eff,proton_total=test(self.test_list["test_data_list"],self.test_list["test_label_list"],self.test_list["test_type_list"],self.test_list["test_energy_list"],self.model,self.device,self.train_type,self.log,None)
             l_g=gamma_eff/(gamma_total+0.0001)
             l_p=proton_eff/(proton_total+0.0001)
             l=(gamma_eff+proton_eff)/(gamma_total+proton_total+0.0001)
             self.log.write("test with loss_g:"+str(l_g)+", loss_p:"+str(l_p)+", loss:"+str(l))
             print("test with loss_g:"+str(l_g)+", loss_p:"+str(l_p)+", loss:"+str(l))
         elif self.train_type=="position":
-            gamma_eff,gamma_loss_0,gamma_loss_1,gamma_total,proton_eff,proton_loss_0,proton_loss_1,proton_total=test(self.test_list["test_data_list"],self.test_list["test_label_list"],self.test_list["test_type_list"],self.test_list["test_energy_list"],self.model,self.device,self.train_type,self.log)
+            gamma_eff,gamma_loss_0,gamma_loss_1,gamma_total,proton_eff,proton_loss_0,proton_loss_1,proton_total=test(self.test_list["test_data_list"],self.test_list["test_label_list"],self.test_list["test_type_list"],self.test_list["test_energy_list"],self.model,self.device,self.train_type,self.log,None)
             l_g=gamma_eff/(gamma_total+0.0001)
             l_g_0=gamma_loss_0/(gamma_total+0.0001)
             l_g_1=gamma_loss_1/(gamma_total+0.0001)
@@ -442,7 +432,7 @@ class Au(object):
             self.log.write(res_log)
             print(res_print)
         elif self.train_type=="angle":
-            gamma_eff,gamma_total,proton_eff,proton_total=test(self.test_list["test_data_list"],self.test_list["test_label_list"],self.test_list["test_type_list"],self.test_list["test_energy_list"],self.model,self.device,self.train_type,self.log)
+            gamma_eff,gamma_total,proton_eff,proton_total=test(self.test_list["test_data_list"],self.test_list["test_label_list"],self.test_list["test_type_list"],self.test_list["test_energy_list"],self.model,self.device,self.train_type,self.log,None)
             l_g=gamma_eff/(gamma_total+0.0001)
             l_p=proton_eff/(proton_total+0.0001)
             l=(gamma_eff+proton_eff)/(gamma_total+proton_total+0.0001)

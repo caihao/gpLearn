@@ -2,17 +2,21 @@ import torch
 import torch.nn as nn
 
 from utils.log import Log
+from utils.leftTime import LeftTime
 
 def softmax(X):
     X_exp=torch.exp(X)
     partition=X_exp.sum(1,keepdim=True)
     return X_exp/partition
 
-def test(test_data_list:list,test_label_list:list,test_type_list:list,test_energy_list:list,model,device,train_type:str,log:Log=None):
+def test(test_data_list:list,test_label_list:list,test_type_list:list,test_energy_list:list,model,device,train_type:str,log:Log=None,leftTime:LeftTime=None):
     batchSize=1
     if log!=None:
         log.write("testing...")
     print("testing...")
+    if leftTime!=None:
+        leftTime.startEpochTesting()
+    
     if train_type=="particle":
         loss_function=nn.CrossEntropyLoss(reduction="sum")
     elif train_type=="energy":
@@ -115,6 +119,10 @@ def test(test_data_list:list,test_label_list:list,test_type_list:list,test_energ
             if log!=None:
                 log.error("invalid type")
             raise Exception("invalid type")
+    
+    if leftTime!=None:
+        leftTime.endEpochTesting()
+        
     if train_type=="position":
         return gamma_eff,gamma_loss_0,gamma_loss_1,gamma_total,proton_eff,proton_loss_0,proton_loss_1,proton_total
     else:
