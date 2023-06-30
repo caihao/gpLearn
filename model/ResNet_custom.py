@@ -41,10 +41,12 @@ class ResNet_custom(nn.Module):
     def __init__(self,input_channels,input_size_x,input_size_y,output_size):
         super().__init__()
         self.classifer=nn.Sequential(
-            Residual(input_channels,16),
-            # Residual(4,16),
-            Residual(16,64),
-            Residual(64,256),
+            # nn.Conv2d(input_channels,64,kernel_size=3,padding=1),nn.BatchNorm2d(64),nn.ReLU(),
+            Residual(input_channels,64),
+            Residual(64,128),
+            Residual(128,256),
+            Residual(256,512),
+            Residual(512,1024),
             nn.AdaptiveAvgPool2d((1,1)),
             nn.Flatten()
         )

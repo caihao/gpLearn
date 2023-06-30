@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import math
 
 from utils.log import Log
 from utils.leftTime import LeftTime
@@ -10,6 +11,7 @@ def softmax(X):
     return X_exp/partition
 
 def test(test_data_list:list,test_label_list:list,test_type_list:list,test_energy_list:list,model,device,train_type:str,log:Log=None,leftTime:LeftTime=None):
+    assert len(test_data_list)==len(test_label_list)==len(test_type_list)==len(test_energy_list)
     batchSize=1
     if log!=None:
         log.write("testing...")
@@ -19,13 +21,15 @@ def test(test_data_list:list,test_label_list:list,test_type_list:list,test_energ
     
     if train_type=="particle":
         loss_function=nn.CrossEntropyLoss(reduction="sum")
+        # 对于背景抑制工作，针对同能量的光子/质子正确率，需要计算品质因子
+        acc_info={"gamma":{},"proton":{}}
     elif train_type=="energy":
         loss_function=nn.MSELoss(reduction="sum")
     elif train_type=="position":
         loss_function=nn.MSELoss(reduction="sum")
     elif train_type=="angle":
         loss_function=nn.MSELoss(reduction="sum")
-    assert len(test_data_list)==len(test_label_list) and len(test_label_list)==len(test_type_list) and len(test_type_list)==len(test_energy_list)
+    
     gamma_eff=0
     gamma_total=0
     proton_eff=0
@@ -77,9 +81,10 @@ def test(test_data_list:list,test_label_list:list,test_type_list:list,test_energ
             gamma_eff=gamma_eff+item_eff
             gamma_total=gamma_total+item_total
             if train_type=="particle":
-                if log!=None:
-                    log.write("gamma"+str(test_energy_list[i])+' accuracy '+str(item_eff/item_total))
-                print("gamma"+str(test_energy_list[i])+' accuracy '+str(item_eff/item_total))
+                acc_info["gamma"][str(test_energy_list[i])]=item_eff/item_total
+                # if log!=None:
+                #     log.write("gamma"+str(test_energy_list[i])+' accuracy '+str(item_eff/item_total))
+                # print("gamma"+str(test_energy_list[i])+' accuracy '+str(item_eff/item_total))
             elif train_type=="energy":
                 if log!=None:
                     log.write("gamma"+str(test_energy_list[i])+' loss '+str(item_eff/item_total))
@@ -94,13 +99,15 @@ def test(test_data_list:list,test_label_list:list,test_type_list:list,test_energ
                 if log!=None:
                     log.write("gamma"+str(test_energy_list[i])+' loss '+str(item_eff/item_total))
                 print("gamma"+str(test_energy_list[i])+' loss '+str(item_eff/item_total))
+        
         elif test_type_list[i]==1:
             proton_eff=proton_eff+item_eff
             proton_total=proton_total+item_total
             if train_type=="particle":
-                if log!=None:
-                    log.write("proton"+str(test_energy_list[i])+' accuracy '+str(item_eff/item_total))
-                print("proton"+str(test_energy_list[i])+' accuracy '+str(item_eff/item_total))
+                acc_info["proton"][str(test_energy_list[i])]=item_eff/item_total
+                # if log!=None:
+                #     log.write("proton"+str(test_energy_list[i])+' accuracy '+str(item_eff/item_total))
+                # print("proton"+str(test_energy_list[i])+' accuracy '+str(item_eff/item_total))
             elif train_type=="energy":
                 if log!=None:
                     log.write("proton"+str(test_energy_list[i])+' loss '+str(item_eff/item_total))
@@ -119,6 +126,35 @@ def test(test_data_list:list,test_label_list:list,test_type_list:list,test_energ
             if log!=None:
                 log.error("invalid type")
             raise Exception("invalid type")
+    
+    if train_type=="particle":
+        gamma_set=set(acc_info["gamma"].keys())
+        proton_set=set(acc_info["proton"].keys())
+        union=list(gamma_set.union(proton_set))
+        for z in range(len(union)):
+            union[z]=int(union[z])
+        union.sort()
+        intersection=list(gamma_set.intersection(proton_set))
+        for en in union:
+            if str(en) in intersection:
+                # 光子/质子同能量点数据均存在
+                a_g=acc_info["gamma"][str(en)]
+                a_p=acc_info["proton"][str(en)]
+                q=a_g/math.sqrt(1-a_p)
+                if log!=None:
+                    log.write("calculation at energy "+str(en)+" gets Q: "+str(q)+" (with acc_gamma: "+str(a_g)+" and acc_proton: "+str(a_p)+")")
+                print("calculation at energy "+str(en)+" gets Q: "+str(q)+" (with acc_gamma: "+str(a_g)+" and acc_proton: "+str(a_p)+")")
+            else:
+                if str(en) in list(gamma_set):
+                    # 仅存在光子数据点
+                    if log!=None:
+                        log.write("missing data for calculation Q (only with acc_gamma: "+str(acc_info["gamma"][str(en)])+")")
+                    print("missing data for calculation Q (only with acc_gamma: "+str(acc_info["gamma"][str(en)])+")")
+                else:
+                    # 仅存在质子数据点
+                    if log!=None:
+                        log.write("missing data for calculation Q (only with acc_proton: "+str(acc_info["proton"][str(en)])+")")
+                    print("missing data for calculation Q (only with acc_proton: "+str(acc_info["proton"][str(en)])+")")
     
     if leftTime!=None:
         leftTime.endEpochTesting()

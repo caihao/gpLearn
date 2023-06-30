@@ -91,7 +91,8 @@ class LeftTime(object):
         h=stamp//3600
         m=(stamp-3600*h)//60
         s=stamp-3600*h-60*m
-        return str(int(h))+":"+str(int(m))+":"+str(int(s))
+        return "{:d}:{:02d}:{:02d}".format(int(h),int(m),int(s))
+
     def stamp_to_date(self,stamp:int):
         dt_obj=datetime.datetime.fromtimestamp(stamp)
         dt_str=dt_obj.strftime('%Y-%m-%d %H:%M:%S')

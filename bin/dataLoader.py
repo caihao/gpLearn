@@ -139,9 +139,9 @@ def load_data(particle:str,energy:int,total_number:int,allow_pic_number_list:lis
         return data_tensor,label_tensor
     else:
         if label!=None:
-            return data_tensor,load_label(label,current_number,label_dtype)
+            return data_tensor,load_label(label,current_number,label_dtype),current_number
         else:
-            return data_tensor,None
+            return data_tensor,None,current_number
 
 def load_label(label,length:int,dtype):
     label_list=[label for _ in range(length)]

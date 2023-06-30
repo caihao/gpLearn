@@ -66,10 +66,9 @@ class Au(object):
             use_weight:bool=False,
             train_type:str="particle",
             use_loading_process:int=None,
-            current_file_name:str="main.py",
-            current_program_version:str="alpha-0.3.3"
+            current_file_name:str="main.py"
     ):
-        log=Log(current_file_name,current_program_version)
+        log=Log(current_file_name,"alpha-0.4.0")
         self.timeStamp=log.timeStamp
         log.info("pid",os.getpid())
         log.method("Au.__init__")
@@ -179,7 +178,7 @@ class Au(object):
             particle="gamma" if use_data_type==None else "gamma_"+use_data_type
             print(particle+str(i)+" loading finish with length: "+str(final_length)+" (pre set: "+str(particle_number_gamma)+")")
             print("Loading ("+completion+"%): estimated remaining time: "+hms+", estimated completion time: "+da)
-            log.write(particle+str(i)+" loading finish with length: "+str(particle_number_gamma))
+            log.write(particle+str(i)+" loading finish with length: "+str(final_length)+" (pre set: "+str(particle_number_gamma)+")")
             log.write("Loading ("+completion+"%): estimated remaining time: "+hms+", estimated completion time: "+da)
 
 
@@ -242,7 +241,7 @@ class Au(object):
             particle="proton" if use_data_type==None else "proton_"+use_data_type
             print(particle+str(i)+" loading finish with length: "+str(final_length)+" (pre set: "+str(particle_number_proton)+")")
             print("Loading ("+completion+"%): estimated remaining time: "+hms+", estimated completion time: "+da)
-            log.write(particle+str(i)+" loading finish with length: "+str(particle_number_gamma))
+            log.write(particle+str(i)+" loading finish with length: "+str(final_length)+" (pre set: "+str(particle_number_proton)+")")
             log.write("Loading ("+completion+"%): estimated remaining time: "+hms+", estimated completion time: "+da)
 
         # 构建训练集DataLoader
