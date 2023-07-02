@@ -53,11 +53,10 @@ class ResNet_custom(nn.Module):
         x=torch.rand((1,input_channels,input_size_x,input_size_y))
         linear_size=self.classifer(x).size(-1)
         self.features=nn.Sequential(
-            # nn.Linear(linear_size,2048),nn.ReLU(),nn.Dropout(0.2),
-            # nn.Linear(2048,512),nn.ReLU(),nn.Dropout(0.2),
-            # nn.Linear(512,128),nn.ReLU(),nn.Dropout(0.2),
-            # nn.Linear(128,output_size)
-            nn.Linear(linear_size,output_size)
+            nn.Linear(linear_size,256),nn.ReLU(),nn.Dropout(0.2),
+            nn.Linear(256,64),nn.ReLU(),nn.Dropout(0.2),
+            nn.Linear(64,output_size)
+            # nn.Linear(linear_size,output_size)
         )
 
     def forward(self,X):

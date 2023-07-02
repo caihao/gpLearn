@@ -3,7 +3,6 @@ import torch.nn as nn
 from torch.utils.data import DataLoader, Dataset
 import math
 import os
-import pickle
 import multiprocessing
 import json
 
@@ -15,6 +14,7 @@ from bin.test import test
 from utils.path import get_project_file_path
 from utils.log import Log
 from utils.leftTime import LeftTime
+from utils.dataInfo import DataInfo
 
 def multi_process_load_data(particle:str,energy:int,particle_number:int,allow_pic_number_list:list,limit_min_pix_number:int,ignore_head_number:int,pic_size:int,centering:bool,train_type:str):
     print(particle,energy,"start...")
@@ -65,10 +65,11 @@ class Au(object):
             centering:bool=True,
             use_weight:bool=False,
             train_type:str="particle",
+            need_data_info:bool=False,
             use_loading_process:int=None,
             current_file_name:str="main.py"
     ):
-        log=Log(current_file_name,"alpha-0.4.0")
+        log=Log(current_file_name,"alpha-0.5.0")
         self.timeStamp=log.timeStamp
         log.info("pid",os.getpid())
         log.method("Au.__init__")
@@ -88,6 +89,11 @@ class Au(object):
         log.info("centering",centering)
         log.info("use_weight",use_weight)
         log.info("train_type",train_type)
+        log.info("need_data_info",need_data_info)
+        if need_data_info:
+            self.data_info=DataInfo(self.timeStamp,train_type)
+        else:
+            self.data_info=None
 
         with open(get_project_file_path("settings.json"),"r") as f:
             self.settings=json.load(f)
@@ -341,7 +347,7 @@ class Au(object):
         # self.model=nn.DataParallel(self.model)
         self.log.write("optimizer setting finish")
 
-    def train_step(self,epoch_step_list:list,lr_step_list:list=None,need_data_info:bool=False):
+    def train_step(self,epoch_step_list:list,lr_step_list:list=None):
         self.log.method("Au.train_step")
         self.log.info("epoch_step_list",epoch_step_list)
         if lr_step_list!=None:
@@ -349,9 +355,9 @@ class Au(object):
         else:
             self.log.info("lr_step_list","default")
 
-        self.log.info("need_data_info",need_data_info)
-        if need_data_info:
-            data_info=[]
+        # self.log.info("need_data_info",need_data_info)
+        # if need_data_info:
+        #     data_info=[]
 
         self.lt.startTraining(len(self.dataLoader)*self.batch_size,sum(epoch_step_list))
         for i in range(len(epoch_step_list)):
@@ -364,41 +370,39 @@ class Au(object):
             self.log.write("training on step:"+str(i+1)+" with lr:"+str(se_lr)+" ...")
             print("training on step:"+str(i+1)+" with lr:"+str(se_lr)+" ...")
             if self.train_type=="particle":
-                self.model,return_result,data_info_item=train(self.dataLoader,self.batch_size,epoch_step_list[i],self.model,self.device,self.optimizer,self.loss_function,self.train_type,self.test_list,{"acc":self.acc,"q":self.q,"model_file":self.modelfile},self.log,need_data_info,self.lt)
+                self.model,return_result=train(self.dataLoader,self.batch_size,epoch_step_list[i],self.model,self.device,self.optimizer,self.loss_function,self.train_type,self.test_list,{"acc":self.acc,"q":self.q,"model_file":self.modelfile},self.log,self.data_info,self.lt)
                 self.acc=return_result["acc"]
                 self.q=return_result["q"]
             elif self.train_type=="energy":
-                self.model,return_result,data_info_item=train(self.dataLoader,self.batch_size,epoch_step_list[i],self.model,self.device,self.optimizer,self.loss_function,self.train_type,self.test_list,{"l":self.l,"model_file":self.modelfile},self.log,need_data_info,self.lt)
+                self.model,return_result=train(self.dataLoader,self.batch_size,epoch_step_list[i],self.model,self.device,self.optimizer,self.loss_function,self.train_type,self.test_list,{"l":self.l,"model_file":self.modelfile},self.log,self.data_info,self.lt)
                 self.l=return_result["l"]
             elif self.train_type=="position":
-                self.model,return_result,data_info_item=train(self.dataLoader,self.batch_size,epoch_step_list[i],self.model,self.device,self.optimizer,self.loss_function,self.train_type,self.test_list,{"l":self.l,"l_0":self.l_0,"l_1":self.l_1,"model_file":self.modelfile},self.log,need_data_info,self.lt)
+                self.model,return_result=train(self.dataLoader,self.batch_size,epoch_step_list[i],self.model,self.device,self.optimizer,self.loss_function,self.train_type,self.test_list,{"l":self.l,"l_0":self.l_0,"l_1":self.l_1,"model_file":self.modelfile},self.log,self.data_info,self.lt)
                 self.l=return_result["l"]
                 self.l_0=return_result["l_0"]
                 self.l_1=return_result["l_1"]
             elif self.train_type=="angle":
-                self.model,return_result,data_info_item=train(self.dataLoader,self.batch_size,epoch_step_list[i],self.model,self.device,self.optimizer,self.loss_function,self.train_type,self.test_list,{"l":self.l,"model_file":self.modelfile},self.log,need_data_info,self.lt)
+                self.model,return_result=train(self.dataLoader,self.batch_size,epoch_step_list[i],self.model,self.device,self.optimizer,self.loss_function,self.train_type,self.test_list,{"l":self.l,"model_file":self.modelfile},self.log,self.data_info,self.lt)
                 self.l=return_result["l"]
             
             self.log.write("step "+str(i+1)+" finish")
             print("step "+str(i+1)+" finish")
-            if need_data_info:
-                data_info.append(data_info_item)
+            # if need_data_info:
+            #     data_info.append(data_info_item)
 
         hms,da=self.lt.endTraining()
         print("Training finish! Used time: "+hms+", end time: "+da)
         self.log.write("Training finish! Used time: "+hms+", end time: "+da)
        
-        if need_data_info:
-            with open(get_project_file_path("data/info/"+self.timeStamp+".data"),"wb") as f:
-                pickle.dump(data_info,f)
-                f.close()
-            self.log.write("data info has been saved in '"+"data/info/"+self.timeStamp+".data"+"'")
-            print("data info has been saved in '"+"data/info/"+self.timeStamp+".data"+"'")
+        # if need_data_info:
+        #     with open(get_project_file_path("data/info/"+self.timeStamp+".data"),"wb") as f:
+        #         pickle.dump(data_info,f)
+        #         f.close()
 
     def test(self):
         self.log.method("test")
         if self.train_type=="particle":
-            gamma_eff,gamma_total,proton_eff,proton_total=test(self.test_list["test_data_list"],self.test_list["test_label_list"],self.test_list["test_type_list"],self.test_list["test_energy_list"],self.model,self.device,self.train_type,self.log,None)
+            gamma_eff,gamma_total,proton_eff,proton_total=test(self.test_list["test_data_list"],self.test_list["test_label_list"],self.test_list["test_type_list"],self.test_list["test_energy_list"],self.model,self.device,self.train_type,True,self.log,None,self.data_info)
             acc_g=gamma_eff/gamma_total
             acc_p=proton_eff/proton_total
             acc=(gamma_eff+proton_eff)/(gamma_total+proton_total)
@@ -409,14 +413,14 @@ class Au(object):
             self.log.write("test result with acc_g:"+str(acc_g)+", acc_p:"+str(acc_p)+", acc:"+str(acc)+", q:"+str(q))
             print("test result with acc_g:"+str(acc_g)+", acc_p:"+str(acc_p)+", acc:"+str(acc)+", q:"+str(q))
         elif self.train_type=="energy":
-            gamma_eff,gamma_total,proton_eff,proton_total=test(self.test_list["test_data_list"],self.test_list["test_label_list"],self.test_list["test_type_list"],self.test_list["test_energy_list"],self.model,self.device,self.train_type,self.log,None)
+            gamma_eff,gamma_total,proton_eff,proton_total=test(self.test_list["test_data_list"],self.test_list["test_label_list"],self.test_list["test_type_list"],self.test_list["test_energy_list"],self.model,self.device,self.train_type,True,self.log,None,self.data_info)
             l_g=gamma_eff/(gamma_total+0.0001)
             l_p=proton_eff/(proton_total+0.0001)
             l=(gamma_eff+proton_eff)/(gamma_total+proton_total+0.0001)
             self.log.write("test with loss_g:"+str(l_g)+", loss_p:"+str(l_p)+", loss:"+str(l))
             print("test with loss_g:"+str(l_g)+", loss_p:"+str(l_p)+", loss:"+str(l))
         elif self.train_type=="position":
-            gamma_eff,gamma_loss_0,gamma_loss_1,gamma_total,proton_eff,proton_loss_0,proton_loss_1,proton_total=test(self.test_list["test_data_list"],self.test_list["test_label_list"],self.test_list["test_type_list"],self.test_list["test_energy_list"],self.model,self.device,self.train_type,self.log,None)
+            gamma_eff,gamma_loss_0,gamma_loss_1,gamma_total,proton_eff,proton_loss_0,proton_loss_1,proton_total=test(self.test_list["test_data_list"],self.test_list["test_label_list"],self.test_list["test_type_list"],self.test_list["test_energy_list"],self.model,self.device,self.train_type,True,self.log,None,self.data_info)
             l_g=gamma_eff/(gamma_total+0.0001)
             l_g_0=gamma_loss_0/(gamma_total+0.0001)
             l_g_1=gamma_loss_1/(gamma_total+0.0001)
@@ -431,7 +435,7 @@ class Au(object):
             self.log.write(res_log)
             print(res_print)
         elif self.train_type=="angle":
-            gamma_eff,gamma_total,proton_eff,proton_total=test(self.test_list["test_data_list"],self.test_list["test_label_list"],self.test_list["test_type_list"],self.test_list["test_energy_list"],self.model,self.device,self.train_type,self.log,None)
+            gamma_eff,gamma_total,proton_eff,proton_total=test(self.test_list["test_data_list"],self.test_list["test_label_list"],self.test_list["test_type_list"],self.test_list["test_energy_list"],self.model,self.device,self.train_type,True,self.log,None,self.data_info)
             l_g=gamma_eff/(gamma_total+0.0001)
             l_p=proton_eff/(proton_total+0.0001)
             l=(gamma_eff+proton_eff)/(gamma_total+proton_total+0.0001)
@@ -439,6 +443,11 @@ class Au(object):
             print("test with loss_g:"+str(l_g)+", loss_p:"+str(l_p)+", loss:"+str(l))
     
     def finish(self):
+        if self.data_info:
+            info_path=self.data_info.save()
+            self.log.write("data info has been saved in '"+info_path+"'")
+            print("data info has been saved in '"+info_path+"'")
+        
         self.log.method("finish")
         self.log.write("job finish")
         print("job finish")

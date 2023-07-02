@@ -5,13 +5,14 @@ from bin.test import test
 from utils.tensorShuffle import tensor_shuffle
 from utils.log import Log
 from utils.leftTime import LeftTime
+from utils.dataInfo import DataInfo
 
 def softmax(X):
     X_exp=torch.exp(X)
     partition=X_exp.sum(1,keepdim=True)
     return X_exp/partition
 
-def train(dataLoader,batchSize:int,epoch:int,model,device,optimizer,lossFunction,train_type:str,test_list:dict=None,current_result:dict=None,log:Log=None,need_data_info:bool=False,leftTime:LeftTime=None):
+def train(dataLoader,batchSize:int,epoch:int,model,device,optimizer,lossFunction,train_type:str,test_list:dict=None,current_result:dict=None,log:Log=None,data_info:DataInfo=None,leftTime:LeftTime=None):
     model.train()
     if train_type=="particle":
         self_acc=current_result["acc"]
@@ -24,17 +25,17 @@ def train(dataLoader,batchSize:int,epoch:int,model,device,optimizer,lossFunction
         self_l_1=current_result["l_1"]
     elif train_type=="angle":
         self_l=current_result["l"]
-    if need_data_info:
-        data_info_list=[]
-    else:
-        data_info_list=None
+    # if need_data_info:
+    #     data_info_list=[]
+    # else:
+    #     data_info_list=None
     for t in range(epoch):
         # data_train,label_train=tensor_shuffle(train_type,dataTensor,labelTensor)
-        if need_data_info:
-            data_info_item={
-                "train":[],
-                "test":[]
-            }
+        # if need_data_info:
+        #     data_info_item={
+        #         "train":[],
+        #         "test":[]
+        #     }
         if log!=None:
             log.write('training on epoch '+str(t+1)+'/'+str(epoch))
         print('training on epoch '+str(t+1)+'/'+str(epoch))
@@ -73,9 +74,11 @@ def train(dataLoader,batchSize:int,epoch:int,model,device,optimizer,lossFunction
                 loss.mean().backward()
                 optimizer.step()
                 # 进行损失以及正确率记录
-                if need_data_info:
-                    with torch.no_grad():
-                        data_info_item["train"].append({"batchSize":batchSize,"loss":loss.sum().item()})
+                if data_info:
+                    data_info.add_train_info({"batchSize":batchSize,"loss":loss.sum().item()})
+                # if need_data_info:
+                #     with torch.no_grad():
+                #         data_info_item["train"].append({"batchSize":batchSize,"loss":loss.sum().item()})
 
                 current_index=current_index+batchSize
 
@@ -141,20 +144,31 @@ def train(dataLoader,batchSize:int,epoch:int,model,device,optimizer,lossFunction
                 loss.mean().backward()
                 optimizer.step()
                 # 进行损失以及正确率记录
-                if need_data_info:
-                    if train_type=="particle":
-                        with torch.no_grad():
-                            data_info_item["train"].append({"batchSize":batchSize,"loss":loss.item(),"acc":s.sum().item()})
-                    elif train_type=="position":
-                        with torch.no_grad():
-                            data_info_item["train"].append({"batchSize":batchSize,"loss":loss.sum().item(),"loss_0":loss_0.sum().item(),"loss_1":loss_1.sum().item()})
-                    elif train_type=="angle":
-                        with torch.no_grad():
-                            data_info_item["train"].append({"batchSize":batchSize,"loss":loss.sum().item()})
+                if data_info:
+                    with torch.no_grad():
+                        if train_type=="particle":
+                            data_info.add_train_info({"batchSize":batchSize,"loss":loss.item(),"acc":s.sum().item()})
+                        elif train_type=="position":
+                            data_info.add_train_info({"batchSize":batchSize,"loss":loss.sum().item(),"loss_0":loss_0.sum().item(),"loss_1":loss_1.sum().item()})
+                        elif train_type=="angle":
+                            data_info.add_train_info({"batchSize":batchSize,"loss":loss.sum().item()})
+
+                    # if train_type=="particle":
+                    #     with torch.no_grad():
+                    #         data_info_item["train"].append({"batchSize":batchSize,"loss":loss.item(),"acc":s.sum().item()})
+                    # elif train_type=="position":
+                    #     with torch.no_grad():
+                    #         data_info_item["train"].append({"batchSize":batchSize,"loss":loss.sum().item(),"loss_0":loss_0.sum().item(),"loss_1":loss_1.sum().item()})
+                    # elif train_type=="angle":
+                    #     with torch.no_grad():
+                    #         data_info_item["train"].append({"batchSize":batchSize,"loss":loss.sum().item()})
 
                 current_index=current_index+batchSize
-            
+        
+        if data_info:
+            data_info.finish_train_info()
         leftTime.endEpochTrainin()
+
         if train_type=="particle":
             if log!=None:
                 log.write("training accuracy: "+str(valid_number/current_index))
@@ -178,7 +192,7 @@ def train(dataLoader,batchSize:int,epoch:int,model,device,optimizer,lossFunction
             # print(valid_number,current_index)
     
         if train_type=="particle":
-            gamma_eff,gamma_total,proton_eff,proton_total=test(test_list["test_data_list"],test_list["test_label_list"],test_list["test_type_list"],test_list["test_energy_list"],model,device,train_type,log,leftTime)
+            gamma_eff,gamma_total,proton_eff,proton_total=test(test_list["test_data_list"],test_list["test_label_list"],test_list["test_type_list"],test_list["test_energy_list"],model,device,train_type,False,log,leftTime,data_info)
             acc_g=gamma_eff/gamma_total
             acc_p=proton_eff/proton_total
             acc=(gamma_eff+proton_eff)/(gamma_total+proton_total)
@@ -187,8 +201,9 @@ def train(dataLoader,batchSize:int,epoch:int,model,device,optimizer,lossFunction
             except:
                 q=acc_g/math.sqrt(1-acc_p+0.00001)
             
-            if need_data_info:
-                data_info_item["test"].append({"acc_g":acc_g,"acc_p":acc_p,"acc":acc,"q":q})
+            if data_info:
+                data_info.add_test_info("all",{"acc_g":acc_g,"acc_p":acc_p,"acc":acc,"q":q})
+                # data_info_item["test"].append({"acc_g":acc_g,"acc_p":acc_p,"acc":acc,"q":q})
 
             res="acc_g:%f, acc_p:%f, acc:%f, q:%f" % (acc_g,acc_p,acc,q)
             log.write("epoch "+str(t+1)+" finish")
@@ -208,13 +223,14 @@ def train(dataLoader,batchSize:int,epoch:int,model,device,optimizer,lossFunction
                 print("model continue...")
         
         elif train_type=="energy":
-            gamma_eff,gamma_total,proton_eff,proton_total=test(test_list["test_data_list"],test_list["test_label_list"],test_list["test_type_list"],test_list["test_energy_list"],model,device,train_type,log,leftTime)
+            gamma_eff,gamma_total,proton_eff,proton_total=test(test_list["test_data_list"],test_list["test_label_list"],test_list["test_type_list"],test_list["test_energy_list"],model,device,train_type,False,log,leftTime,data_info)
             l_g=gamma_eff/(gamma_total+0.0001)
             l_p=proton_eff/(proton_total+0.0001)
             l=(gamma_eff+proton_eff)/(gamma_total+proton_total)
 
-            if need_data_info:
-                data_info_item["test"].append({"l_g":l_g,"l_p":l_p,"l":l})
+            if data_info:
+                data_info.add_test_info("all",{"l_g":l_g,"l_p":l_p,"l":l})
+                # data_info_item["test"].append({"l_g":l_g,"l_p":l_p,"l":l})
 
             res="l_g:%f, l_p:%f, l:%f" % (l_g,l_p,l)
             log.write("epoch "+str(t+1)+" finish")
@@ -233,7 +249,7 @@ def train(dataLoader,batchSize:int,epoch:int,model,device,optimizer,lossFunction
                 print("model continue...")
         
         elif train_type=="position":
-            gamma_eff,gamma_loss_0,gamma_loss_1,gamma_total,proton_eff,proton_loss_0,proton_loss_1,proton_total=test(test_list["test_data_list"],test_list["test_label_list"],test_list["test_type_list"],test_list["test_energy_list"],model,device,train_type,log,leftTime)
+            gamma_eff,gamma_loss_0,gamma_loss_1,gamma_total,proton_eff,proton_loss_0,proton_loss_1,proton_total=test(test_list["test_data_list"],test_list["test_label_list"],test_list["test_type_list"],test_list["test_energy_list"],model,device,train_type,False,log,leftTime,data_info)
             l_g=gamma_eff/(gamma_total+0.0001)
             l_g_0=gamma_loss_0/(gamma_total+0.0001)
             l_g_1=gamma_loss_1/(gamma_total+0.0001)
@@ -244,12 +260,17 @@ def train(dataLoader,batchSize:int,epoch:int,model,device,optimizer,lossFunction
             l_0=(gamma_loss_0+proton_loss_0)/(gamma_total+proton_total+0.0001)
             l_1=(gamma_loss_1+proton_loss_1)/(gamma_total+proton_total+0.0001)
 
-            if need_data_info:
-                data_info_item["test"].append({
+            if data_info:
+                data_info.add_test_info("all",{
                     "l_g":l_g,"l_g_0":l_g_0,"l_g_1":l_g_1,
                     "l_p":l_p,"l_p_0":l_p_0,"l_p_1":l_p_1,
                     "l":l,"l_0":l_0,"l_1":l_1
                 })
+                # data_info_item["test"].append({
+                #     "l_g":l_g,"l_g_0":l_g_0,"l_g_1":l_g_1,
+                #     "l_p":l_p,"l_p_0":l_p_0,"l_p_1":l_p_1,
+                #     "l":l,"l_0":l_0,"l_1":l_1
+                # })
 
             res_log="l_g:%f, l_g_0:%f, l_g_1:%f, l_p:%f, l_p_0:%f, l_p_1:%f, l:%f, l_0:%f, l_1:%f" % (l_g,l_g_0,l_g_1,l_p,l_p_0,l_p_1,l,l_0,l_1)
             res_print="l_g:%f, l_g_0:%f, l_g_1:%f,\nl_p:%f, l_p_0:%f, l_p_1:%f,\nl:%f, l_0:%f, l_1:%f" % (l_g,l_g_0,l_g_1,l_p,l_p_0,l_p_1,l,l_0,l_1)
@@ -271,13 +292,14 @@ def train(dataLoader,batchSize:int,epoch:int,model,device,optimizer,lossFunction
                 print("model continue...")
 
         elif train_type=="angle":
-            gamma_eff,gamma_total,proton_eff,proton_total=test(test_list["test_data_list"],test_list["test_label_list"],test_list["test_type_list"],test_list["test_energy_list"],model,device,train_type,log,leftTime)
+            gamma_eff,gamma_total,proton_eff,proton_total=test(test_list["test_data_list"],test_list["test_label_list"],test_list["test_type_list"],test_list["test_energy_list"],model,device,train_type,False,log,leftTime,data_info)
             l_g=gamma_eff/(gamma_total+0.0001)
             l_p=proton_eff/(proton_total+0.0001)
             l=(gamma_eff+proton_eff)/(gamma_total+proton_total)
 
-            if need_data_info:
-                data_info_item["test"].append({"l_g":l_g,"l_p":l_p,"l":l})
+            if data_info:
+                data_info.add_test_info("all",{"l_g":l_g,"l_p":l_p,"l":l})
+                # data_info_item["test"].append({"l_g":l_g,"l_p":l_p,"l":l})
 
             res="l_g:%f, l_p:%f, l:%f" % (l_g,l_p,l)
             log.write("epoch "+str(t+1)+" finish")
@@ -295,16 +317,16 @@ def train(dataLoader,batchSize:int,epoch:int,model,device,optimizer,lossFunction
                 log.write("model continue...")
                 print("model continue...")
 
-        if need_data_info:
-            data_info_list.append(data_info_item)
+        if data_info:
+            data_info.finish_test_info()
 
     if train_type=="particle":
-        return model,{"acc":self_acc,"q":self_q},data_info_list
+        return model,{"acc":self_acc,"q":self_q}
     elif train_type=="energy":
-        return model,{"l":self_l},data_info_list
+        return model,{"l":self_l}
     elif train_type=="position":
-        return model,{"l":self_l,"l_0":self_l_0,"l_1":self_l_1},data_info_list
+        return model,{"l":self_l,"l_0":self_l_0,"l_1":self_l_1}
     elif train_type=="angle":
-        return model,{"l":self_l},data_info_list
+        return model,{"l":self_l}
     else:
         raise Exception("invalid train type")

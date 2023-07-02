@@ -7,3 +7,4 @@ from . import locationTransform
 from . import tensorShuffle
 from . import log
 from . import leftTime
+from . import dataInfo
