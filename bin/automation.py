@@ -182,9 +182,9 @@ class Au(object):
 
             hms,da,completion=self.lt.loadLeftTime(final_length,particle_number_gamma)
             particle="gamma" if use_data_type==None else "gamma_"+use_data_type
-            print(particle+str(i)+" loading finish with length: "+str(final_length)+" (pre set: "+str(particle_number_gamma)+")")
+            print(particle+" "+str(i)+" loading finish with length: "+str(final_length)+" (pre set: "+str(particle_number_gamma)+")")
             print("Loading ("+completion+"%): estimated remaining time: "+hms+", estimated completion time: "+da)
-            log.write(particle+str(i)+" loading finish with length: "+str(final_length)+" (pre set: "+str(particle_number_gamma)+")")
+            log.write(particle+" "+str(i)+" loading finish with length: "+str(final_length)+" (pre set: "+str(particle_number_gamma)+")")
             log.write("Loading ("+completion+"%): estimated remaining time: "+hms+", estimated completion time: "+da)
 
 
@@ -245,9 +245,9 @@ class Au(object):
 
             hms,da,completion=self.lt.loadLeftTime(final_length,particle_number_proton)
             particle="proton" if use_data_type==None else "proton_"+use_data_type
-            print(particle+str(i)+" loading finish with length: "+str(final_length)+" (pre set: "+str(particle_number_proton)+")")
+            print(particle+" "+str(i)+" loading finish with length: "+str(final_length)+" (pre set: "+str(particle_number_proton)+")")
             print("Loading ("+completion+"%): estimated remaining time: "+hms+", estimated completion time: "+da)
-            log.write(particle+str(i)+" loading finish with length: "+str(final_length)+" (pre set: "+str(particle_number_proton)+")")
+            log.write(particle+" "+str(i)+" loading finish with length: "+str(final_length)+" (pre set: "+str(particle_number_proton)+")")
             log.write("Loading ("+completion+"%): estimated remaining time: "+hms+", estimated completion time: "+da)
 
         # 构建训练集DataLoader

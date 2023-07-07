@@ -4,12 +4,15 @@ import pickle
 from utils.path import get_project_file_path
 
 class DataInfo(object):
-    def __init__(self,init_time:int,train_type:str):
+    def __init__(self,init_time:int,train_type:str,train_info_size:int=64):
         self.init_time=init_time
         self.train_type=train_type
+        self.train_batch=[]
+        self.train_info_size=train_info_size
         self.train_temp=[]
         self.test_temp={}
         if train_type=="particle":
+            self.key_list=["loss","acc"]
             self.info={
                 "train":[],
                 "test":[],
@@ -20,6 +23,7 @@ class DataInfo(object):
                 }
             }
         elif train_type=="energy":
+            self.key_list=["loss"]
             self.info={
                 "train":[],
                 "test":[],
@@ -29,6 +33,7 @@ class DataInfo(object):
                 }
             }
         elif train_type=="position":
+            self.key_list=["loss","loss_0","loss_1"]
             self.info={
                 "train":[],
                 "test":[],
@@ -38,6 +43,7 @@ class DataInfo(object):
                 }
             }
         elif train_type=="angle":
+            self.key_list=["loss"]
             self.info={
                 "train":[],
                 "test":[],
@@ -50,13 +56,31 @@ class DataInfo(object):
             raise Exception("invalid train type")
         
     def add_train_info(self,info_dict:dict):
-        self.train_temp.append(info_dict.update({"time":int(time.time())}))
+        self.train_batch.append(info_dict.update({"time":int(time.time())}))
+        if len(self.train_batch)>=self.train_info_size:
+            self.add_batch()
+    
+    def add_batch(self):
+        t={"batchSize":0,"time":0}
+        for key in self.key_list:
+            t[key]=0
+        for item in self.train_batch:
+            t["batchSize"]=t["batchSize"]+1
+            for key in self.key_list:
+                t[key]=t[key]+item[key]
+        for key in self.key_list:
+            t[key]=t[key]/t["batchSize"]
+        t["time"]=int(time.time())
+        self.train_temp.append(t)
+        self.train_batch.clear()
     
     def add_test_info(self,key:str,info_dict:dict):
         self.test_temp[key]=info_dict.update({"time":int(time.time())})
         # self.test_temp.append(info_dict.update({"time":int(time.time())}))
 
     def finish_train_info(self):
+        if len(self.train_batch)>0:
+            self.add_batch()
         self.info["train"].append(self.train_temp)
         self.train_temp.clear()
     

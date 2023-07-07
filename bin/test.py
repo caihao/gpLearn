@@ -169,18 +169,17 @@ def test(test_data_list:list,test_label_list:list,test_type_list:list,test_energ
         
     if train_type=="particle":
         q_info={}
-        gamma_set=set(acc_info["gamma"].keys())
-        proton_set=set(acc_info["proton"].keys())
+        gamma_set=set([int(i) for i in acc_info["gamma"].keys()])
+        proton_set=set([int(i)/3 for i in acc_info["proton"].keys()])
+        # proton_set=set(acc_info["proton"].keys())
         union=list(gamma_set.union(proton_set))
-        for z in range(len(union)):
-            union[z]=int(union[z])
         union.sort()
         intersection=list(gamma_set.intersection(proton_set))
         for en in union:
             if str(en) in intersection:
                 # 光子/质子同能量点数据均存在
                 a_g=acc_info["gamma"][str(en)]
-                a_p=acc_info["proton"][str(en)]
+                a_p=acc_info["proton"][str(en*3)]
                 q=a_g/math.sqrt(1-a_p+0.000001)
                 q_info[str(en)]={"q":q,"time":int(time.time())}
                 if log!=None:
@@ -195,8 +194,8 @@ def test(test_data_list:list,test_label_list:list,test_type_list:list,test_energ
                 else:
                     # 仅存在质子数据点
                     if log!=None:
-                        log.write("missing data at energy "+str(en)+" for calculation Q (only with acc_proton: "+str(acc_info["proton"][str(en)])+")")
-                    print("missing data at energy "+str(en)+" for calculation Q (only with acc_proton: "+str(acc_info["proton"][str(en)])+")")
+                        log.write("missing data at energy "+str(en*3)+" for calculation Q (only with acc_proton: "+str(acc_info["proton"][str(en*3)])+")")
+                    print("missing data at energy "+str(en*3)+" for calculation Q (only with acc_proton: "+str(acc_info["proton"][str(en*3)])+")")
 
         if data_info:
             if not final_test:
