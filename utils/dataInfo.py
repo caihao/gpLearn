@@ -56,7 +56,8 @@ class DataInfo(object):
             raise Exception("invalid train type")
         
     def add_train_info(self,info_dict:dict):
-        self.train_batch.append(info_dict.update({"time":int(time.time())}))
+        info_dict.update({"time":int(time.time())})
+        self.train_batch.append(info_dict)
         if len(self.train_batch)>=self.train_info_size:
             self.add_batch()
     
@@ -75,7 +76,8 @@ class DataInfo(object):
         self.train_batch.clear()
     
     def add_test_info(self,key:str,info_dict:dict):
-        self.test_temp[key]=info_dict.update({"time":int(time.time())})
+        info_dict.update({"time":int(time.time())})
+        self.test_temp[key]=info_dict
         # self.test_temp.append(info_dict.update({"time":int(time.time())}))
 
     def finish_train_info(self):
