@@ -69,7 +69,7 @@ class Au(object):
             use_loading_process:int=None,
             current_file_name:str="main.py"
     ):
-        log=Log(current_file_name,"alpha-0.5.1")
+        log=Log(current_file_name,"alpha-0.5.2")
         self.timeStamp=log.timeStamp
         log.info("pid",os.getpid())
         log.method("Au.__init__")
