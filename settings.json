@@ -10,5 +10,164 @@
         "mainGPUIndex":0,
         "multiple":false,
         "multipleGPUIndex":[0,1]
+    },
+    "drawing":{
+        "result":{
+            "particle":{
+                "gamma":{
+                    "title":"Photon Recognition Correctness",
+                    "xlabel":"Energy / GeV",
+                    "ylabel":"Correct Rate",
+                    "label":"Deep-Learning",
+                    "TeV_mode":false,
+                    "logX_mode":false,
+                    "logY_mode":false,
+                    "color":null,
+                    "save":{"switch":false,"head_name":null,"dpi":400}
+                },
+                "proton":{
+                    "title":"Proton Recognition Correctness",
+                    "xlabel":"Energy / GeV",
+                    "ylabel":"Correct Rate",
+                    "label":"Deep-Learning",
+                    "TeV_mode":false,
+                    "logX_mode":false,
+                    "logY_mode":false,
+                    "color":null,
+                    "save":{"switch":false,"head_name":null,"dpi":400}
+                },
+                "q":{
+                    "title":"Quality Factor",
+                    "xlabel":"Energy / GeV",
+                    "ylabel":"Q",
+                    "label":"Deep-Learning",
+                    "TeV_mode":false,
+                    "logX_mode":false,
+                    "logY_mode":false,
+                    "color":null,
+                    "save":{"switch":false,"head_name":null,"dpi":400}
+                }
+            },
+            "energy":{
+                "gamma":{
+                    "title":"Loss of Photon Energy Recognition",
+                    "xlabel":"Energy / GeV",
+                    "ylabel":"Loss",
+                    "label":"Deep-Learning",
+                    "TeV_mode":false,
+                    "logX_mode":false,
+                    "logY_mode":false,
+                    "color":null,
+                    "save":{"switch":false,"head_name":null,"dpi":400}
+                },
+                "proton":{
+                    "title":"Loss of Proton Energy Recognition",
+                    "xlabel":"Energy / GeV",
+                    "ylabel":"Loss",
+                    "label":"Deep-Learning",
+                    "TeV_mode":false,
+                    "logX_mode":false,
+                    "logY_mode":false,
+                    "color":null,
+                    "save":{"switch":false,"head_name":null,"dpi":400}
+                }
+            },
+            "position":{
+                "gamma":{
+                    "loss":{
+                        "title":"Loss of Photon Position Recognition",
+                        "xlabel":"Energy / GeV",
+                        "ylabel":"Loss",
+                        "label":"Deep-Learning",
+                        "TeV_mode":false,
+                        "logX_mode":false,
+                        "logY_mode":false,
+                        "color":null,
+                        "save":{"switch":false,"head_name":null,"dpi":400}
+                    },
+                    "loss_0":{
+                        "title":"Loss of Photon Position Recognition (x-coordinate)",
+                        "xlabel":"Energy / GeV",
+                        "ylabel":"Loss",
+                        "label":"Deep-Learning",
+                        "TeV_mode":false,
+                        "logX_mode":false,
+                        "logY_mode":false,
+                        "color":null,
+                        "save":{"switch":false,"head_name":null,"dpi":400}
+                    },
+                    "loss_1":{
+                        "title":"Loss of Photon Position Recognition (y-coordinate)",
+                        "xlabel":"Energy / GeV",
+                        "ylabel":"Loss",
+                        "label":"Deep-Learning",
+                        "TeV_mode":false,
+                        "logX_mode":false,
+                        "logY_mode":false,
+                        "color":null,
+                        "save":{"switch":false,"head_name":null,"dpi":400}
+                    }
+                },
+                "proton":{
+                    "loss":{
+                        "title":"Loss of Proton Position Recognition",
+                        "xlabel":"Energy / GeV",
+                        "ylabel":"Loss",
+                        "label":"Deep-Learning",
+                        "TeV_mode":false,
+                        "logX_mode":false,
+                        "logY_mode":false,
+                        "color":null,
+                        "save":{"switch":false,"head_name":null,"dpi":400}
+                    },
+                    "loss_0":{
+                        "title":"Loss of Proton Position Recognition (x-coordinate)",
+                        "xlabel":"Energy / GeV",
+                        "ylabel":"Loss",
+                        "label":"Deep-Learning",
+                        "TeV_mode":false,
+                        "logX_mode":false,
+                        "logY_mode":false,
+                        "color":null,
+                        "save":{"switch":false,"head_name":null,"dpi":400}
+                    },
+                    "loss_1":{
+                        "title":"Loss of Proton Position Recognition (y-coordinate)",
+                        "xlabel":"Energy / GeV",
+                        "ylabel":"Loss",
+                        "label":"Deep-Learning",
+                        "TeV_mode":false,
+                        "logX_mode":false,
+                        "logY_mode":false,
+                        "color":null,
+                        "save":{"switch":false,"head_name":null,"dpi":400}
+                    }
+                }
+            },
+            "angle":{
+                "gamma":{
+                    "title":"Loss of Photon Angle Recognition",
+                    "xlabel":"Energy / GeV",
+                    "ylabel":"Loss",
+                    "label":"Deep-Learning",
+                    "TeV_mode":false,
+                    "logX_mode":false,
+                    "logY_mode":false,
+                    "color":null,
+                    "save":{"switch":false,"head_name":null,"dpi":400}
+                },
+                "proton":{
+                    "title":"Loss of Proton Angle Recognition",
+                    "xlabel":"Energy / GeV",
+                    "ylabel":"Loss",
+                    "label":"Deep-Learning",
+                    "TeV_mode":false,
+                    "logX_mode":false,
+                    "logY_mode":false,
+                    "color":null,
+                    "save":{"switch":false,"head_name":null,"dpi":400}
+                }
+            }
+        }
     }
 }

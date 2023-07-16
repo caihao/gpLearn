@@ -14,6 +14,7 @@ class DataInfo(object):
         if train_type=="particle":
             self.key_list=["loss","acc"]
             self.info={
+                "info":{},
                 "train":[],
                 "test":[],
                 "result":{
@@ -25,6 +26,7 @@ class DataInfo(object):
         elif train_type=="energy":
             self.key_list=["loss"]
             self.info={
+                "info":{},
                 "train":[],
                 "test":[],
                 "result":{
@@ -35,6 +37,7 @@ class DataInfo(object):
         elif train_type=="position":
             self.key_list=["loss","loss_0","loss_1"]
             self.info={
+                "info":{},
                 "train":[],
                 "test":[],
                 "result":{
@@ -45,6 +48,7 @@ class DataInfo(object):
         elif train_type=="angle":
             self.key_list=["loss"]
             self.info={
+                "info":{},
                 "train":[],
                 "test":[],
                 "result":{
@@ -54,7 +58,10 @@ class DataInfo(object):
             }
         else:
             raise Exception("invalid train type")
-        
+
+    def set_info(self,key:str,value):
+        self.info["info"][key]=value
+
     def add_train_info(self,info_dict:dict):
         info_dict.update({"time":int(time.time())})
         self.train_batch.append(info_dict)

@@ -1,5 +1,7 @@
 import torch
+import os
 import pickle
+import json
 import matplotlib.pyplot as plt
 
 from bin.dataLoader import load_data
@@ -201,3 +203,98 @@ def show_particle_picture(tensor_data,index:int,single_pic_size:int=64,_type:str
     else:
         raise Exception("invalid _type")
     plt.show()
+
+def result_genereation(info_name:str):
+    info_path=get_project_file_path(os.path.join("/data/info",info_name))
+    if not os.path.exists(info_path):
+        info_path=get_project_file_path(info_name)
+        if not os.path.exists(info_path):
+            raise Exception("info not found")
+    with open(info_path,"rb") as f:
+        d=pickle.load(f)
+        f.close()
+    with open(get_project_file_path("settings.json"),"r") as f:
+        settings=json.load(f)["drawing"]["result"]
+        f.close()
+    train_type=d["info"]["train_type"]
+    # train_type="particle"
+    def show(energy:list,r:list,settings:dict):
+        assert len(energy)==len(r)
+        if settings["TeV_mode"]:
+            for i in range(len(energy)):
+                energy[i]=energy[i]/1000
+        plt.title(settings["title"])
+        plt.xlabel(settings["xlabel"])
+        plt.ylabel(settings["ylabel"])
+        if settings["color"]:
+            plt.plot(energy,r,label=settings["label"],color=settings["color"])
+        else:
+            plt.plot(energy,r,label=settings["label"])
+        if settings["logX_mode"]:
+            plt.xscale("log")
+        if settings["logY_mode"]:
+            plt.yscale("log")
+        plt.legend()
+        if settings["save"]["switch"]:
+            plt.savefig(settings["save"]["head_name"]+"_"+settings["title"]+".png" if settings["save"]["head_name"]!=None else settings["title"]+".png",dpi=settings["save"]["dpi"])
+        plt.show()
+
+    if train_type=="particle":
+        energy=d["result"]["gamma"]["energy"]
+        r=d["result"]["gamma"]["r"]
+        if len(energy)!=0:
+            show(energy,r,settings["particle"]["gamma"])
+        energy=d["result"]["proton"]["energy"]
+        r=d["result"]["proton"]["r"]
+        if len(energy)!=0:
+            show(energy,r,settings["particle"]["proton"])
+        energy=d["result"]["q"]["energy"]
+        r=d["result"]["q"]["r"]
+        if len(energy)!=0:
+            show(energy,r,settings["particle"]["q"])
+    
+    elif train_type=="energy":
+        energy=d["result"]["gamma"]["energy"]
+        r=d["result"]["gamma"]["loss"]
+        if len(energy)!=0:
+            show(energy,r,settings["energy"]["gamma"])
+        energy=d["result"]["proton"]["energy"]
+        r=d["result"]["proton"]["loss"]
+        if len(energy)!=0:
+            show(energy,r,settings["energy"]["proton"])
+        
+    elif train_type=="position":
+        energy=d["result"]["gamma"]["energy"]
+        r=d["result"]["gamma"]["loss"]
+        if len(energy)!=0:
+            show(energy,r,settings["position"]["gamma"]["loss"])
+        r=d["result"]["gamma"]["loss_0"]
+        if len(energy)!=0:
+            show(energy,r,settings["position"]["gamma"]["loss_0"])
+        r=d["result"]["gamma"]["loss_1"]
+        if len(energy)!=0:
+            show(energy,r,settings["position"]["gamma"]["loss_1"])
+        
+        energy=d["result"]["proton"]["energy"]
+        r=d["result"]["proton"]["loss"]
+        if len(energy)!=0:
+            show(energy,r,settings["position"]["proton"]["loss"])
+        r=d["result"]["proton"]["loss_0"]
+        if len(energy)!=0:
+            show(energy,r,settings["position"]["proton"]["loss_0"])
+        r=d["result"]["proton"]["loss_1"]
+        if len(energy)!=0:
+            show(energy,r,settings["position"]["proton"]["loss_1"])
+    
+    elif train_type=="angle":
+        energy=d["result"]["gamma"]["energy"]
+        r=d["result"]["gamma"]["loss"]
+        if len(energy)!=0:
+            show(energy,r,settings["angle"]["gamma"])
+        energy=d["result"]["proton"]["energy"]
+        r=d["result"]["proton"]["loss"]
+        if len(energy)!=0:
+            show(energy,r,settings["angle"]["proton"])
+
+    else:
+        raise Exception("invalid train type")

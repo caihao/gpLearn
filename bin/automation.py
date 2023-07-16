@@ -59,9 +59,9 @@ class Au(object):
             limit_min_pix_number:bool=False,
             ignore_head_number:int=0,
             interval:float=0.8,
-            pic_size:int=64,
             batch_size:int=1,
             use_data_type:str=None,
+            pic_size:int=64,
             centering:bool=True,
             use_weight:bool=False,
             train_type:str="particle",
@@ -69,7 +69,8 @@ class Au(object):
             use_loading_process:int=None,
             current_file_name:str="main.py"
     ):
-        log=Log(current_file_name,"alpha-0.5.2")
+        current_version="alpha-0.6.0"
+        log=Log(current_file_name,current_version)
         self.timeStamp=log.timeStamp
         log.info("pid",os.getpid())
         log.method("Au.__init__")
@@ -92,6 +93,24 @@ class Au(object):
         log.info("need_data_info",need_data_info)
         if need_data_info:
             self.data_info=DataInfo(self.timeStamp,train_type)
+            self.data_info.set_info("current_timestamp",self.timeStamp)
+            self.data_info.set_info("current_version",current_version)
+            self.data_info.set_info("current_file_name",current_file_name)
+
+            self.data_info.set_info("gamma_energy_list",gamma_energy_list)
+            self.data_info.set_info("proton_energy_list",proton_energy_list)
+            self.data_info.set_info("particle_number_gamma",particle_number_gamma)
+            self.data_info.set_info("particle_number_proton",particle_number_proton)
+            self.data_info.set_info("allow_pic_number_list",allow_pic_number_list)
+            self.data_info.set_info("limit_min_pix_number",limit_min_pix_number)
+            self.data_info.set_info("ignore_head_number",ignore_head_number)
+            self.data_info.set_info("interval",interval)
+            self.data_info.set_info("pic_size",pic_size)
+            self.data_info.set_info("batch_size",batch_size)
+            self.data_info.set_info("use_data_type",use_data_type)
+            self.data_info.set_info("centering",centering)
+            self.data_info.set_info("use_weight",use_weight)
+            self.data_info.set_info("train_type",train_type)
         else:
             self.data_info=None
 
@@ -101,18 +120,23 @@ class Au(object):
 
         log.info("USE MULTIPLE GPU",self.settings["GPU"]["multiple"])
         log.info("SET CUDA DEVICE",self.settings["GPU"]["mainGPUIndex"])
+        self.data_info.set_info("USE MULTIPLE GPU",self.settings["GPU"]["multiple"])
+        self.data_info.set_info("SET CUDA DEVICE",self.settings["GPU"]["mainGPUIndex"])
         if self.settings["GPU"]["multiple"]:
-            if self.settings["GPU"]["mainGPUNumber"]>=torch.cuda.device_count():
+            if self.settings["GPU"]["mainGPUIndex"]>=torch.cuda.device_count():
                 raise Exception("GPU index out of range")
             for index in self.settings["GPU"]["multipleGPUIndex"]:
                 if index >=torch.cuda.device_count():
                     raise Exception("Multiple GPU index out of range")
             log.info("MULTIPLE GPU INDEX",self.settings["GPU"]["multipleGPUIndex"])
+            self.data_info.set_info("MULTIPLE GPU INDEX",self.settings["GPU"]["multipleGPUIndex"])
 
         if use_loading_process==None:
             log.info("use_loading_process","No_Multi_Process")
+            self.data_info.set_info("use_loading_process","No_Multi_Process")
         else:
             log.info("use_loading_process",use_loading_process)
+            self.data_info.set_info("use_loading_process",use_loading_process)
 
         self.lt=LeftTime()
         self.lt.startLoading(len(gamma_energy_list)*particle_number_gamma+len(proton_energy_list)*particle_number_proton)
@@ -122,6 +146,9 @@ class Au(object):
         train_data=None
         train_label=None
         self.test_list={"test_data_list":[],"test_label_list":[],"test_type_list":[],"test_energy_list":[]}
+        
+        print("Loading...")
+        log.write("Loading...")
         
         for i in gamma_energy_list:
             if train_type=="particle":

@@ -134,9 +134,9 @@ def load_data(particle:str,energy:int,total_number:int,allow_pic_number_list:lis
     #     log.write(particle+str(energy)+" loading finish with length: "+str(current_number))
     
     if train_type=="position":
-        return data_tensor,label_tensor
+        return data_tensor,label_tensor,current_number
     elif train_type=="angle":
-        return data_tensor,label_tensor
+        return data_tensor,label_tensor,current_number
     else:
         if label!=None:
             return data_tensor,load_label(label,current_number,label_dtype),current_number
