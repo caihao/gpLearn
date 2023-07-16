@@ -1,5 +1,9 @@
-/data/**
-!/data/origin/gamma_demo_*.json
-!/data/origin/proton_demo_*.json
+/data/info/**
+/data/log/**
+/data/model/**
+/data/temp/**
 **/__pycache__/
 /*.ipynb
+/data/origin/**
+!/data/origin/gamma_demo_*
+!/data/origin/proton_demo_*
