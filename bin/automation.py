@@ -69,7 +69,7 @@ class Au(object):
             use_loading_process:int=None,
             current_file_name:str="main.py"
     ):
-        current_version="stable-1.0.0"
+        current_version="stable-1.0.2"
         log=Log(current_file_name,current_version)
         self.timeStamp=log.timeStamp
         log.info("pid",os.getpid())
