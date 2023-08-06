@@ -17,25 +17,12 @@ class Residual(nn.Module):
             nn.Conv2d(input_channels,out_channels,kernel_size=1,stride=2)
         )
 
-        # self.classifer=nn.Sequential(
-        #     nn.Conv2d(input_channels,out_channels,kernel_size=3,padding=1,stride=2),
-        #     nn.BatchNorm2d(out_channels),
-        #     nn.ReLU()
-        # )
-        # self.features=nn.Sequential(
-        #     nn.Conv2d(input_channels,out_channels,kernel_size=1)
-        # )
-
     def forward(self,X):
         Y=F.relu(self.conv1(X))
         Y=self.conv2(Y)
         X=self.conv3(X)
         Y=Y+X
         return F.relu(Y)
-
-        # Y1=self.classifer(X)
-        # Y2=self.features(X)
-        # return  F.relu(Y1+Y2)
 
 class ResNet_custom(nn.Module):
     def __init__(self,input_channels,input_size_x,input_size_y,output_size):

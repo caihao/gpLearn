@@ -3,10 +3,8 @@ import torch.nn as nn
 from torch.utils.data import DataLoader, Dataset
 import math
 import os
-import multiprocessing
 import json
 
-from bin.dataTranslater import load_from_text_to_json
 from bin.modelInit import initializeModel
 from bin.dataLoader import load_data
 from bin.train import train
@@ -15,22 +13,6 @@ from utils.path import get_project_file_path
 from utils.log import Log
 from utils.leftTime import LeftTime
 from utils.dataInfo import DataInfo
-
-def multi_process_load_data(particle:str,energy:int,particle_number:int,allow_pic_number_list:list,limit_min_pix_number:int,ignore_head_number:int,pic_size:int,centering:bool,train_type:str):
-    print(particle,energy,"start...")
-    if particle=="gamma":
-        particle_label_number=0
-    elif particle=="proton":
-        particle_label_number=1
-    else:
-        raise Exception("invalid particle type")
-    if train_type=="energy":
-        data,label=load_data(particle,energy,particle_number,allow_pic_number_list,limit_min_pix_number,ignore_head_number,pic_size,centering,energy/100,torch.float32)
-    elif train_type=="particle":
-        data,label=load_data(particle,energy,particle_number,allow_pic_number_list,limit_min_pix_number,ignore_head_number,pic_size,centering,particle_label_number,torch.int64)
-    else:
-        raise Exception("invalid train type")
-    return data,label,particle_label_number,energy
 
 class GPDataset(Dataset):
     def __init__(self, data, targets):
@@ -41,7 +23,7 @@ class GPDataset(Dataset):
     def __getitem__(self, idx):
         return self.data[idx], self.targets[idx]
 
-class GPDataset_energy(Dataset):
+class GPDataset_Double(Dataset):
     def __init__(self, data1, data2, targets):
         self.data1 = data1
         self.data2 = data2
@@ -69,18 +51,21 @@ class Au(object):
             use_loading_process:int=None,
             current_file_name:str="main.py"
     ):
-        current_version="stable-1.0.2"
+        current_version="stable-1.1.0"
         log=Log(current_file_name,current_version)
         self.timeStamp=log.timeStamp
+        with open(get_project_file_path("settings.json"),"r") as f:
+            self.settings=json.load(f)
+            f.close()
+        
         log.info("pid",os.getpid())
         log.method("Au.__init__")
-
         log.info("gamma_energy_list",gamma_energy_list)
         log.info("proton_energy_list",proton_energy_list)
         log.info("particle_number_gamma",particle_number_gamma)
         log.info("particle_number_proton",particle_number_proton)
         log.info("allow_pic_number_list",allow_pic_number_list)
-        log.info("limit_min_pix_number",limit_min_pix_number)
+        log.info("limit_min_pix_number",limit_min_pix_number)            
         log.info("ignore_head_number",ignore_head_number)
         log.info("interval",interval)
         log.info("pic_size",pic_size)
@@ -96,7 +81,6 @@ class Au(object):
             self.data_info.set_info("current_timestamp",self.timeStamp)
             self.data_info.set_info("current_version",current_version)
             self.data_info.set_info("current_file_name",current_file_name)
-
             self.data_info.set_info("gamma_energy_list",gamma_energy_list)
             self.data_info.set_info("proton_energy_list",proton_energy_list)
             self.data_info.set_info("particle_number_gamma",particle_number_gamma)
@@ -113,10 +97,6 @@ class Au(object):
             self.data_info.set_info("train_type",train_type)
         else:
             self.data_info=None
-
-        with open(get_project_file_path("settings.json"),"r") as f:
-            self.settings=json.load(f)
-            f.close()
 
         log.info("USE MULTIPLE GPU",self.settings["GPU"]["multiple"])
         log.info("SET CUDA DEVICE",self.settings["GPU"]["mainGPUIndex"])
@@ -152,13 +132,13 @@ class Au(object):
         
         for i in gamma_energy_list:
             if train_type=="particle":
-                data,label,final_length=load_data("gamma" if use_data_type==None else "gamma_"+use_data_type,i,particle_number_gamma,allow_pic_number_list,limit_min_pix_number,ignore_head_number,pic_size,train_type,centering,use_weight,0,torch.int64)
+                data,label,final_length,min_pix=load_data("gamma" if use_data_type==None else "gamma_"+use_data_type,i,particle_number_gamma,allow_pic_number_list,self.settings if limit_min_pix_number else None,ignore_head_number,pic_size,train_type,centering,use_weight,0,torch.int64,self.settings,log)
             elif train_type=="energy":
-                data,label,final_length=load_data("gamma" if use_data_type==None else "gamma_"+use_data_type,i,particle_number_gamma,allow_pic_number_list,limit_min_pix_number,ignore_head_number,pic_size,train_type,centering,use_weight,i/100,torch.float32)
+                data,label,final_length,min_pix=load_data("gamma" if use_data_type==None else "gamma_"+use_data_type,i,particle_number_gamma,allow_pic_number_list,self.settings if limit_min_pix_number else None,ignore_head_number,pic_size,train_type,centering,use_weight,i/100,torch.float32,self.settings,log)
             elif train_type=="position":
-                data,label,final_length=load_data("gamma" if use_data_type==None else "gamma_"+use_data_type,i,particle_number_gamma,allow_pic_number_list,limit_min_pix_number,ignore_head_number,pic_size,train_type,centering,use_weight,None,None)
+                data,label,final_length,min_pix=load_data("gamma" if use_data_type==None else "gamma_"+use_data_type,i,particle_number_gamma,allow_pic_number_list,self.settings if limit_min_pix_number else None,ignore_head_number,pic_size,train_type,centering,use_weight,None,None,self.settings,log)
             elif train_type=="angle":
-                data,label,final_length=load_data("gamma" if use_data_type==None else "gamma_"+use_data_type,i,particle_number_gamma,allow_pic_number_list,limit_min_pix_number,ignore_head_number,pic_size,train_type,centering,use_weight,None,None)
+                data,label,final_length,min_pix=load_data("gamma" if use_data_type==None else "gamma_"+use_data_type,i,particle_number_gamma,allow_pic_number_list,self.settings if limit_min_pix_number else None,ignore_head_number,pic_size,train_type,centering,use_weight,None,None,self.settings,log)
             else:
                 raise Exception("invalid train type")
 
@@ -169,9 +149,9 @@ class Au(object):
                     train_data=[data[0][:int(interval*len(data[0]))],data[1][:int(interval*len(data[1]))]]
                 elif train_type=="position":
                     train_data=data[:int(interval*len(data))]
-                    # train_data=[data[0][:int(interval*len(data[0]))],data[1][:int(interval*len(data[1]))]]
                 elif train_type=="angle":
                     train_data=data[:int(interval*len(data))]
+                    # train_data=[data[0][:int(interval*len(data[0]))],data[1][:int(interval*len(data[1]))]]
             else:
                 if train_type=="particle":
                     train_data=torch.cat((train_data,data[:int(interval*len(data))]))
@@ -182,12 +162,12 @@ class Au(object):
                     ]
                 elif train_type=="position":
                     train_data=torch.cat((train_data,data[:int(interval*len(data))]))
+                elif train_type=="angle":
+                    train_data=torch.cat((train_data,data[:int(interval*len(data))]))
                     # train_data=[
                     #     torch.cat((train_data[0],data[0][:int(interval*len(data[0]))])),
                     #     torch.cat((train_data[1],data[1][:int(interval*len(data[1]))]))
                     # ]
-                elif train_type=="angle":
-                    train_data=torch.cat((train_data,data[:int(interval*len(data))]))
             
             if train_label==None:
                 train_label=label[:int(interval*len(label))]
@@ -200,30 +180,30 @@ class Au(object):
                 self.test_list["test_data_list"].append([data[0][int(interval*len(data[0])):],data[1][int(interval*len(data[1])):]])
             elif train_type=="position":
                 self.test_list["test_data_list"].append(data[int(interval*len(data)):])
-                # self.test_list["test_data_list"].append([data[0][int(interval*len(data[0])):],data[1][int(interval*len(data[1])):]])
             elif train_type=="angle":
                 self.test_list["test_data_list"].append(data[int(interval*len(data)):])
+                # self.test_list["test_data_list"].append([data[0][int(interval*len(data[0])):],data[1][int(interval*len(data[1])):]])
             self.test_list["test_label_list"].append(label[int(interval*len(data)):])
             self.test_list["test_type_list"].append(0)
             self.test_list["test_energy_list"].append(i)
 
             hms,da,completion=self.lt.loadLeftTime(final_length,particle_number_gamma)
             particle="gamma" if use_data_type==None else "gamma_"+use_data_type
-            print(particle+" "+str(i)+" loading finish with length: "+str(final_length)+" (pre set: "+str(particle_number_gamma)+")")
+            print(particle+" "+str(i)+" loading finish with length: "+str(final_length)+" (pre set: "+str(particle_number_gamma)+"), with pixel limit: "+str(min_pix))
             print("Loading ("+completion+"%): estimated remaining time: "+hms+", estimated completion time: "+da)
-            log.write(particle+" "+str(i)+" loading finish with length: "+str(final_length)+" (pre set: "+str(particle_number_gamma)+")")
+            log.write(particle+" "+str(i)+" loading finish with length: "+str(final_length)+" (pre set: "+str(particle_number_gamma)+"), with pixel limit: "+str(min_pix))
             log.write("Loading ("+completion+"%): estimated remaining time: "+hms+", estimated completion time: "+da)
 
 
         for i in proton_energy_list:
             if train_type=="particle":
-                data,label,final_length=load_data("proton" if use_data_type==None else "proton_"+use_data_type,i,particle_number_proton,allow_pic_number_list,limit_min_pix_number,ignore_head_number,pic_size,train_type,centering,use_weight,1,torch.int64)
+                data,label,final_length,min_pix=load_data("proton" if use_data_type==None else "proton_"+use_data_type,i,particle_number_proton,allow_pic_number_list,self.settings if limit_min_pix_number else None,ignore_head_number,pic_size,train_type,centering,use_weight,1,torch.int64,self.settings,log)
             elif train_type=="energy":
-                data,label,final_length=load_data("proton" if use_data_type==None else "proton_"+use_data_type,i,particle_number_proton,allow_pic_number_list,limit_min_pix_number,ignore_head_number,pic_size,train_type,centering,use_weight,i/100,torch.float32)
+                data,label,final_length,min_pix=load_data("proton" if use_data_type==None else "proton_"+use_data_type,i,particle_number_proton,allow_pic_number_list,self.settings if limit_min_pix_number else None,ignore_head_number,pic_size,train_type,centering,use_weight,i/100,torch.float32,self.settings,log)
             elif train_type=="position":
-                data,label,final_length=load_data("proton" if use_data_type==None else "proton_"+use_data_type,i,particle_number_gamma,allow_pic_number_list,limit_min_pix_number,ignore_head_number,pic_size,train_type,centering,use_weight,None,None)
+                data,label,final_length,min_pix=load_data("proton" if use_data_type==None else "proton_"+use_data_type,i,particle_number_proton,allow_pic_number_list,self.settings if limit_min_pix_number else None,ignore_head_number,pic_size,train_type,centering,use_weight,None,None,self.settings,log)
             elif train_type=="angle":
-                data,label,final_length=load_data("proton" if use_data_type==None else "proton_"+use_data_type,i,particle_number_gamma,allow_pic_number_list,limit_min_pix_number,ignore_head_number,pic_size,train_type,centering,use_weight,None,None)
+                data,label,final_length,min_pix=load_data("proton" if use_data_type==None else "proton_"+use_data_type,i,particle_number_proton,allow_pic_number_list,self.settings if limit_min_pix_number else None,ignore_head_number,pic_size,train_type,centering,use_weight,None,None,self.settings,log)
             
             if train_data==None:
                 if train_type=="particle":
@@ -232,9 +212,9 @@ class Au(object):
                     train_data=[data[0][:int(interval*len(data[0]))],data[1][:int(interval*len(data[1]))]]
                 elif train_type=="position":
                     train_data=data[:int(interval*len(data))]
-                    # train_data=data[data[0][:int(interval*len(data[0]))],data[1][:int(interval*len(data[1]))]]
                 elif train_type=="angle":
                     train_data=data[:int(interval*len(data))]
+                    # train_data=[data[0][:int(interval*len(data[0]))],data[1][:int(interval*len(data[1]))]]
             else:
                 if train_type=="particle":
                     train_data=torch.cat((train_data,data[:int(interval*len(data))]))
@@ -245,12 +225,12 @@ class Au(object):
                     ]
                 elif train_type=="position":
                     train_data=torch.cat((train_data,data[:int(interval*len(data))]))
+                elif train_type=="angle":
+                    train_data=torch.cat((train_data,data[:int(interval*len(data))]))
                     # train_data=[
                     #     torch.cat((train_data[0],data[0][:int(interval*len(data[0]))])),
                     #     torch.cat((train_data[1],data[1][:int(interval*len(data[1]))]))
                     # ]
-                elif train_type=="angle":
-                    train_data=torch.cat((train_data,data[:int(interval*len(data))]))
             
             if train_label==None:
                 train_label=label[:int(interval*len(label))]
@@ -263,23 +243,23 @@ class Au(object):
                 self.test_list["test_data_list"].append([data[0][int(interval*len(data[0])):],data[1][int(interval*len(data[1])):]])
             elif train_type=="position":
                 self.test_list["test_data_list"].append(data[int(interval*len(data)):])
-                # self.test_list["test_data_list"].append([data[0][int(interval*len(data[0])):],data[1][int(interval*len(data[1])):]])
             elif train_type=="angle":
                 self.test_list["test_data_list"].append(data[int(interval*len(data)):])
+                # self.test_list["test_data_list"].append([data[0][int(interval*len(data[0])):],data[1][int(interval*len(data[1])):]])
             self.test_list["test_label_list"].append(label[int(interval*len(data)):])
             self.test_list["test_type_list"].append(1)
             self.test_list["test_energy_list"].append(i)
 
             hms,da,completion=self.lt.loadLeftTime(final_length,particle_number_proton)
             particle="proton" if use_data_type==None else "proton_"+use_data_type
-            print(particle+" "+str(i)+" loading finish with length: "+str(final_length)+" (pre set: "+str(particle_number_proton)+")")
+            print(particle+" "+str(i)+" loading finish with length: "+str(final_length)+" (pre set: "+str(particle_number_proton)+"), with pixel limit: "+str(min_pix))
             print("Loading ("+completion+"%): estimated remaining time: "+hms+", estimated completion time: "+da)
-            log.write(particle+" "+str(i)+" loading finish with length: "+str(final_length)+" (pre set: "+str(particle_number_proton)+")")
+            log.write(particle+" "+str(i)+" loading finish with length: "+str(final_length)+" (pre set: "+str(particle_number_proton)+"), with pixel limit: "+str(min_pix))
             log.write("Loading ("+completion+"%): estimated remaining time: "+hms+", estimated completion time: "+da)
 
         # 构建训练集DataLoader
         if train_type=="energy":
-            gp_dataset=GPDataset_energy(train_data[0],train_data[1],train_label)
+            gp_dataset=GPDataset_Double(train_data[0],train_data[1],train_label)
         else:
             gp_dataset=GPDataset(train_data,train_label)
         self.dataLoader=DataLoader(gp_dataset,batch_size=batch_size,shuffle=True)
@@ -298,14 +278,13 @@ class Au(object):
             self.log.write("model initializing...")
             if self.train_type=="particle":
                 initializeModel(modelName,1,self.pic_size*2,self.pic_size*2,2,model_type,["acc","q"])
-                # initializeModel(modelName,4,self.pic_size,self.pic_size,2,model_type,["acc","q"])
             elif self.train_type=="energy":
                 initializeModel(modelName,4,self.pic_size,self.pic_size,1,model_type,["l"],input_info=4)
-                # initializeModel(modelName,1,self.pic_size,self.pic_size,1,model_type,["l"])
             elif self.train_type=="position":
                 initializeModel(modelName,1,self.pic_size*2,self.pic_size*2,2,model_type,["l","l_0","l_1"],input_info=2)
             elif self.train_type=="angle":
                 initializeModel(modelName,4,self.pic_size,self.pic_size,2,model_type,["l"],input_info=2)
+                # initializeModel(modelName,4,self.pic_size*2,self.pic_size*2,2,model_type,["l"],input_info=2)
             else:
                 self.log.error("invalid train type")
                 raise Exception("invalid train type")

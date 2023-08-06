@@ -35,7 +35,8 @@ Our recommended main entry point for the program is the **main.py** file located
 <br><br>
 
 ### Mainstreaming
-For convenience, we have integrated all data loading, model creation, training and testing processes into **automation**, which you only need to bring in at the main entry point of the program, **main.py**<br><center>**from bin.automation import Au**</center>.
+For convenience, we have integrated all data loading, model creation, training and testing processes into **automation**, which you only need to bring in at the main entry point of the program, **main.py**<br><center>**from bin.automation import Au**</center>
+
 In the initialization of the **Au** class, you need to specify the following:
 <!-- <center> -->
 

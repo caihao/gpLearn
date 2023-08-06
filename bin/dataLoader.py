@@ -2,32 +2,73 @@ import json
 import os
 import torch
 import math
+import pickle
+import re
 
 from utils.path import get_project_file_path
-from utils.locationTransform import coordinate_transform
+from utils.locationTransform import coordinate_transform,coordinate_transform_angle
+from utils.log import Log    
 
-def load_data(particle:str,energy:int,total_number:int,allow_pic_number_list:list=[4,3,2,1],limit_min_pix_number:bool=False,ignore_number:int=0,pic_size:int=64,train_type:str="particle",centering:bool=True,use_weight:bool=False,label=None,label_dtype=None):
+def load_data(particle:str,energy:int,total_number:int,allow_pic_number_list:list=[4,3,2,1],limit_min_pix_settings:json=None,ignore_number:int=0,pic_size:int=64,train_type:str="particle",centering:bool=True,use_weight:bool=False,label=None,label_dtype=None,settings:json=None,log:Log=None):
     jsonFileName=get_project_file_path("data/origin/"+particle+"_"+str(energy)+".json")
     with open(jsonFileName,'r') as f:
         jsonData=json.load(f)
         f.close()
 
     min_pix=0
-    if limit_min_pix_number:
-        with open(get_project_file_path("settings.json"),"r") as f:
-            settings=json.load(f)
-            f.close()
+    if limit_min_pix_settings:
+        # with open(get_project_file_path("settings.json"),"r") as f:
+        #     settings=json.load(f)
+        #     f.close()
         if particle[0:5]=="gamma":
             par="gamma"
         elif particle[0:6]=="proton":
             par="proton"
         else:
             raise Exception("invalid particle type")
-        if settings["loading_min_pix"]["uniformThreshold"]:
-            min_pix=settings["loading_min_pix"][par+"Uniform"]
+        if limit_min_pix_settings["loading_min_pix"]["uniformThreshold"]:
+            min_pix=limit_min_pix_settings["loading_min_pix"][par+"Uniform"]
         else:
-            if str(energy) in settings["loading_min_pix"][par].keys():
-                min_pix=settings["loading_min_pix"][par][str(energy)]
+            if str(energy) in limit_min_pix_settings["loading_min_pix"][par].keys():
+                min_pix=limit_min_pix_settings["loading_min_pix"][par][str(energy)]
+
+    data_file_name=None
+    old_file_name=None
+    if settings:
+        for load_path in [get_project_file_path("data/temp")]+settings["tempData"]["loadPath"]:
+            for file_name in os.listdir(load_path):
+                pattern="(.*)\((\d+)\).data"
+                matches=re.findall(pattern,file_name)
+                if len(matches)==0:
+                    continue
+                if matches[0][0]==(particle+"_"+str(energy)+"_"+str(allow_pic_number_list)+"_"+str(min_pix)+"_"+str(pic_size)+"_"+str(train_type)+"_"+str(centering)+"_"+str(use_weight)):
+                    if total_number<=int(matches[0][1]):
+                        data_file_name=os.path.join(load_path,file_name)
+                    else:
+                        old_file_name=os.path.join(load_path,file_name)
+            if data_file_name!=None:
+                break
+
+    if data_file_name:
+        with open(data_file_name,"rb") as f:
+            pcl=pickle.load(f)
+            f.close()  
+        if train_type=="energy":
+            data_tensor=[torch.tensor(pcl["data"][0][:total_number],dtype=torch.float32),torch.tensor(pcl["data"][1][:total_number],dtype=torch.float32)]
+            data_tensor=torch.tensor(pcl["label"][:total_number],dtype=torch.float32)
+        elif train_type=="particle":
+            data_tensor=torch.tensor(pcl["data"][:total_number],dtype=torch.float32)
+            label_tensor=torch.tensor(pcl["label"][:total_number],dtype=torch.int64)
+        else:
+            data_tensor=torch.tensor(pcl["data"][:total_number],dtype=torch.float32)
+            label_tensor=torch.tensor(pcl["label"][:total_number],dtype=torch.float32)
+        
+        print(particle+"_"+str(energy)+" was loaded from the cache file: "+data_file_name)
+        if log:
+            log.write(particle+"_"+str(energy)+" was loaded from the cache file: "+data_file_name)
+        
+        return data_tensor,label_tensor,total_number,min_pix
+    
 
     data_tensor=None
     label_tensor=None
@@ -42,9 +83,11 @@ def load_data(particle:str,energy:int,total_number:int,allow_pic_number_list:lis
             if current_ignore<ignore_number:
                 current_ignore=current_ignore+1
                 continue
+            
+            # if pic_item["info"]["recPhi"]==1000 or pic_item["info"]["recPhi"]==-1 or pic_item["info"]["rcoreX"]==0 or pic_item["info"]["rcoreX"]==-1:
+            #     continue
+            
             if train_type=="energy":
-                # if pic_item["info"]["legal"]==False:
-                #     continue
                 fin_energy=torch.tensor([
                     [
                         pic_item["info"]["_position"][str(i+1)][0]/100,pic_item["info"]["_position"][str(i+1)][1]/100,
@@ -53,22 +96,38 @@ def load_data(particle:str,energy:int,total_number:int,allow_pic_number_list:lis
                     ] for i in range(4)
                 ],dtype=torch.float32)
                 fin_energy=torch.unsqueeze(fin_energy,dim=0)
-
+            
             if min_pix!=0:
                 pic_number=len(pic_item["1"])+len(pic_item["2"])+len(pic_item["3"])+len(pic_item["4"])
                 if pic_number<min_pix:
                     continue
+
             if train_type=="angle":
-                temp_tensor=torch.zeros((pic_size,pic_size),dtype=torch.float32)
-                points_list=coordinate_transform(pic_item["1"]+pic_item["2"]+pic_item["3"]+pic_item["4"],400,pic_size,centering,weighted_average=use_weight)
-                for item in points_list:
-                    temp_tensor[item[0]][item[1]]=item[2]
+                temp_tensor=coordinate_transform_angle(pic_item,pic_size,use_weight,use_out1_weight=False)
             else:
                 temp_tensor=[torch.zeros((pic_size,pic_size),dtype=torch.float32),torch.zeros((pic_size,pic_size),dtype=torch.float32),torch.zeros((pic_size,pic_size),dtype=torch.float32),torch.zeros((pic_size,pic_size),dtype=torch.float32)]
+                center_info=[]
                 for i in range(4):
-                    points_list=coordinate_transform(pic_item[str(i+1)],400,pic_size,centering,weighted_average=use_weight)
+                    points_list,center_x,center_y=coordinate_transform(pic_item[str(i+1)],400,pic_size,centering,weighted_average=use_weight)
+                    center_info.append([center_x,center_y])
                     for item in points_list:
-                        temp_tensor[i][item[0]][item[1]]=item[2]
+                        if isinstance(item[0],int) and isinstance(item[1],int):
+                            temp_tensor[i][item[0]][item[1]]=temp_tensor[i][item[0]][item[1]]+item[2]
+                        else:
+                            temp_tensor[i][int(item[0])][int(item[1])]=temp_tensor[i][int(item[0])][int(item[1])]+item[2]
+                # 绝对位置信息归一化
+                center_info[0]=[(center_info[0][0]/1000+100)/100,(center_info[0][1]/1000)/100]
+                center_info[1]=[(center_info[1][0]/1000)/100,(center_info[1][1]/1000)/100]
+                center_info[2]=[(center_info[2][0]/1000+100)/100,(center_info[2][1]/1000+100)/100]
+                center_info[3]=[(center_info[3][0]/1000)/100,(center_info[3][1]/1000+100)/100]
+
+            # points_list,center_x,center_y=coordinate_transform(pic_item,400,pic_size,centering,weighted_average=use_weight)
+            # for i in range(4):
+            #     for item in points_list[str(i+1)]:
+            #         temp_tensor[i][item[0]][item[1]]=temp_tensor[i][item[0]][item[1]]+item[2]
+            #         mean=torch.mean(temp_tensor[i])
+            #         std=torch.std(temp_tensor[i])
+            #         temp_tensor[i]=(temp_tensor[i]-mean)/std
             
             if train_type=="energy":
                 fin=torch.cat((temp_tensor[0].reshape(1,pic_size,pic_size),temp_tensor[1].reshape(1,pic_size,pic_size),temp_tensor[2].reshape(1,pic_size,pic_size),temp_tensor[3].reshape(1,pic_size,pic_size)))
@@ -80,19 +139,15 @@ def load_data(particle:str,energy:int,total_number:int,allow_pic_number_list:lis
                 # fin=torch.cat((temp_tensor[0].reshape(1,pic_size,pic_size),temp_tensor[1].reshape(1,pic_size,pic_size),temp_tensor[2].reshape(1,pic_size,pic_size),temp_tensor[3].reshape(1,pic_size,pic_size)))
                 fin_label=torch.tensor([
                     pic_item["info"]["coreX"]/100,pic_item["info"]["coreY"]/100
+                    # pic_item["info"]["angle_center_x"]/1000,pic_item["info"]["angle_center_y"]/1000
                 ],dtype=torch.float32)
             elif train_type=="angle":
-                fin=torch.cat((temp_tensor[0].reshape(1,pic_size,pic_size),temp_tensor[1].reshape(1,pic_size,pic_size),temp_tensor[2].reshape(1,pic_size,pic_size),temp_tensor[3].reshape(1,pic_size,pic_size)))
-                # fin=temp_tensor.reshape(1,pic_size,pic_size)
+                fin=temp_tensor.reshape(1,4,pic_size,pic_size,4)
                 
-                # if not -10<math.tan((pic_item["info"]["priPhi"]-180)*math.pi/180)<10:
-                #     continue
-                if pic_item["info"]["Cdelta"]==1e3:
-                    continue
+                # fin=torch.cat((torch.cat((temp_tensor[0],temp_tensor[1]),dim=1),torch.cat((temp_tensor[2],temp_tensor[3]),dim=1)),dim=0)
                 fin_label=torch.tensor([
-                    # math.tan((pic_item["info"]["priPhi"]-180)*math.pi/180)
-                    pic_item["info"]["Cdelta"]/1000,pic_item["info"]["Cr"]/1000
-                ],dtype=torch.float32)
+                    math.cos(pic_item["info"]["priPhi"]*math.pi/180),math.sin(pic_item["info"]["priPhi"]*math.pi/180)
+                    ],dtype=torch.float32)
                 
             else:
                 raise Exception("invalid train type")
@@ -108,7 +163,9 @@ def load_data(particle:str,energy:int,total_number:int,allow_pic_number_list:lis
                     # data_tensor=[fin.reshape(1,4,pic_size,pic_size),fin_energy]
                     label_tensor=fin_label.reshape(1,2)
                 elif train_type=="angle":
-                    data_tensor=fin.reshape(1,4,pic_size,pic_size)
+                    data_tensor=fin
+
+                    # data_tensor=fin.reshape(1,4,128,128)
                     label_tensor=fin_label.reshape(1,2)
             else:
                 if train_type=="energy":
@@ -123,7 +180,9 @@ def load_data(particle:str,energy:int,total_number:int,allow_pic_number_list:lis
                     data_tensor=torch.cat((data_tensor,fin.reshape(1,1,2*pic_size,2*pic_size)))
                     label_tensor=torch.cat((label_tensor,fin_label.reshape(1,2)))
                 elif train_type=="angle":
-                    data_tensor=torch.cat((data_tensor,fin.reshape(1,4,pic_size,pic_size)))
+                    data_tensor=torch.cat((data_tensor,fin))
+                    
+                    # data_tensor=torch.cat((data_tensor,fin.reshape(1,4,128,128)))
                     label_tensor=torch.cat((label_tensor,fin_label.reshape(1,2)))
             current_number=current_number+1
             if current_number>=total_number:
@@ -132,16 +191,37 @@ def load_data(particle:str,energy:int,total_number:int,allow_pic_number_list:lis
     # print(particle+str(energy)+" loading finish with length: "+str(current_number))
     # if log!=None:
     #     log.write(particle+str(energy)+" loading finish with length: "+str(current_number))
+    if train_type=="particle" or train_type=="energy":
+        label_tensor=load_label(label,current_number,label_dtype)
     
-    if train_type=="position":
-        return data_tensor,label_tensor,current_number
-    elif train_type=="angle":
-        return data_tensor,label_tensor,current_number
-    else:
-        if label!=None:
-            return data_tensor,load_label(label,current_number,label_dtype),current_number
+    if settings["tempData"]["autoSave"]:
+        if os.path.exists(settings["tempData"]["savePath"]):
+            data_file_name=particle+"_"+str(energy)+"_"+str(allow_pic_number_list)+"_"+str(min_pix)+"_"+str(pic_size)+"_"+str(train_type)+"_"+str(centering)+"_"+str(use_weight)+"("+str(current_number)+")"+".data"
+            data_full_path=os.path.join(settings["tempData"]["savePath"],data_file_name)
+
+            with open(data_full_path,"wb") as f:
+                if train_type=="energy":
+                    pickle.dump({"data":[data_tensor[0].tolist(),data_tensor[1].tolist()],"label":label_tensor.tolist()},f)
+                else:
+                    pickle.dump({"data":data_tensor.tolist(),"label":label_tensor.tolist()},f)
+                f.close()
+            
+            # 删除旧文件
+            if old_file_name:
+                os.remove(old_file_name)
+                print("old file has been deleted: "+old_file_name)
+                if log:
+                    log.write("old file has been deleted: "+old_file_name)
+            
+            print(particle+"_"+str(energy)+" has been cached to: "+data_full_path)
+            if log:
+                log.write(particle+"_"+str(energy)+" has been cached to: "+data_full_path)
         else:
-            return data_tensor,None,current_number
+            print("File cache failure: invalid path: "+settings["tempData"]["savePath"])
+            if log:
+                log.write("File cache failure: invalid path: "+settings["tempData"]["savePath"])
+
+    return data_tensor,label_tensor,current_number,min_pix
 
 def load_label(label,length:int,dtype):
     label_list=[label for _ in range(length)]

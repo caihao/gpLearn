@@ -42,9 +42,4 @@ class PointNet(nn.Module):
     def forward(self,X):
         Y=self.classifer(X)
         Y=self.features(Y)
-
-        # Y=Y[:,0]/Y[:,1]
-        # print(Y)
-        # return Y.unsqueeze(1)
-    
         return Y

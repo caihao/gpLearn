@@ -7,3 +7,4 @@
 /data/origin/**
 !/data/origin/gamma_demo_*
 !/data/origin/proton_demo_*
+/*.png

@@ -18,9 +18,9 @@ class DataInfo(object):
                 "train":[],
                 "test":[],
                 "result":{
-                    "gamma":{"energy":[],"r":[]},
-                    "proton":{"energy":[],"r":[]},
-                    "q":{"energy":[],"r":[]}
+                    "gamma":{"energy":[],"r":[],"std":[]},
+                    "proton":{"energy":[],"r":[],"std":[]},
+                    "q":{"energy":[],"r":[],"std":[]}
                 }
             }
         elif train_type=="energy":
@@ -30,8 +30,8 @@ class DataInfo(object):
                 "train":[],
                 "test":[],
                 "result":{
-                    "gamma":{"energy":[],"loss":[]},
-                    "proton":{"energy":[],"loss":[]}
+                    "gamma":{"energy":[],"loss":[],"std":[]},
+                    "proton":{"energy":[],"loss":[],"std":[]}
                 }
             }
         elif train_type=="position":
@@ -41,8 +41,8 @@ class DataInfo(object):
                 "train":[],
                 "test":[],
                 "result":{
-                    "gamma":{"energy":[],"loss":[],"loss_0":[],"loss_1":[]},
-                    "proton":{"energy":[],"loss":[],"loss_0":[],"loss_1":[]}
+                    "gamma":{"energy":[],"loss":[],"loss_0":[],"loss_1":[],"std":[],"std_0":[],"std_1":[],"angle":[],"std_angle":[]},
+                    "proton":{"energy":[],"loss":[],"loss_0":[],"loss_1":[],"std":[],"std_0":[],"std_1":[],"angle":[],"std_angle":[]}
                 }
             }
         elif train_type=="angle":
@@ -52,8 +52,8 @@ class DataInfo(object):
                 "train":[],
                 "test":[],
                 "result":{
-                    "gamma":{"energy":[],"loss":[]},
-                    "proton":{"energy":[],"loss":[]}
+                    "gamma":{"energy":[],"loss":[],"std":[],"angle":[],"std_angle":[]},
+                    "proton":{"energy":[],"loss":[],"std":[],"angle":[],"std_angle":[]}
                 }
             }
         else:
@@ -97,33 +97,43 @@ class DataInfo(object):
         self.info["test"].append(self.test_temp)
         self.test_temp.clear()
 
-    def add_result_particle(self,energy:int,r:float,info_type:str):
+    def add_result_particle(self,energy:int,r:float,std:float,info_type:str):
         if info_type in ["gamma","proton","q"]:
             self.info["result"][info_type]["energy"].append(energy)
             self.info["result"][info_type]["r"].append(r)
+            self.info["result"][info_type]["std"].append(std)
         else:
             raise Exception("invalid info type")
         
-    def add_result_energy(self,energy:int,loss:float,info_type:str):
+    def add_result_energy(self,energy:int,loss:float,std:float,info_type:str):
         if info_type in ["gamma","proton"]:
             self.info["result"][info_type]["energy"].append(energy)
             self.info["result"][info_type]["loss"].append(loss)
+            self.info["result"][info_type]["std"].append(std)
         else:
             raise Exception("invalid info type")
     
-    def add_result_position(self,energy:int,loss:list,info_type:str):
+    def add_result_position(self,energy:int,loss:list,std:list,info_type:str):
         if info_type in ["gamma","proton"]:
             self.info["result"][info_type]["energy"].append(energy)
             self.info["result"][info_type]["loss"].append(loss[0])
             self.info["result"][info_type]["loss_0"].append(loss[1])
             self.info["result"][info_type]["loss_1"].append(loss[2])
+            self.info["result"][info_type]["angle"].append(loss[3])
+            self.info["result"][info_type]["std"].append(std[0])
+            self.info["result"][info_type]["std_0"].append(std[1])
+            self.info["result"][info_type]["std_1"].append(std[2])
+            self.info["result"][info_type]["std_angle"].append(std[3])
         else:
             raise Exception("invalid info type")
     
-    def add_result_angle(self,energy:int,loss:float,info_type:str):
+    def add_result_angle(self,energy:int,loss:float,std:float,angle:float,std_angle:float,info_type:str):
         if info_type in ["gamma","proton"]:
             self.info["result"][info_type]["energy"].append(energy)
             self.info["result"][info_type]["loss"].append(loss)
+            self.info["result"][info_type]["std"].append(std)
+            self.info["result"][info_type]["angle"].append(angle)
+            self.info["result"][info_type]["std_angle"].append(std_angle)
         else:
             raise Exception("invalid info type")
     

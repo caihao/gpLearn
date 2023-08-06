@@ -8,3 +8,4 @@ from . import tensorShuffle
 from . import log
 from . import leftTime
 from . import dataInfo
+from . import std

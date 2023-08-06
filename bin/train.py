@@ -12,6 +12,13 @@ def softmax(X):
     partition=X_exp.sum(1,keepdim=True)
     return X_exp/partition
 
+def Norm(X:torch.tensor):
+    n=torch.norm(X)
+    if n==0:
+        return X
+    else:
+        return X/n
+
 def train(dataLoader,batchSize:int,epoch:int,model,device,optimizer,lossFunction,train_type:str,test_list:dict=None,current_result:dict=None,log:Log=None,data_info:DataInfo=None,leftTime:LeftTime=None):
     model.train()
     if train_type=="particle":
@@ -67,15 +74,23 @@ def train(dataLoader,batchSize:int,epoch:int,model,device,optimizer,lossFunction
                 
                 data1,data2,label=data1.to(device),data2.to(device),label.to(device)
                 optimizer.zero_grad()
-                y_hat=model(data1,data2)
-                loss=lossFunction(y_hat.reshape(1),label)
-                valid_number=valid_number+loss.sum().item()
+                if train_type=="energy":
+                    y_hat=model(data1,data2)
+                    loss=lossFunction(y_hat.reshape(1),label)
+                    valid_number=valid_number+loss.sum().item()
+                # elif train_type=="angle":
+                #     y_hat=Norm(model(data1,data2))
+                #     loss=lossFunction(y_hat,label)
+                #     valid_number=valid_number+loss.sum().item()
 
                 loss.mean().backward()
                 optimizer.step()
                 # 进行损失以及正确率记录
                 if data_info:
-                    data_info.add_train_info({"batchSize":batchSize,"loss":loss.sum().item()})
+                    if train_type=="energy":
+                        data_info.add_train_info({"batchSize":batchSize,"loss":loss.sum().item()})
+                    # elif train_type=="angle":
+                    #     data_info.add_train_info({"batchSize":batchSize,"loss":loss.sum().item()})
                 # if need_data_info:
                 #     with torch.no_grad():
                 #         data_info_item["train"].append({"batchSize":batchSize,"loss":loss.sum().item()})
@@ -109,13 +124,9 @@ def train(dataLoader,batchSize:int,epoch:int,model,device,optimizer,lossFunction
                     s=(m==label).int()
                     valid_number=valid_number+s.sum().item()
                 elif train_type=="position":
-                    # current_data=data_train[current_index:current_index+batchSize].to(device)
                     y_hat=model(data)
-                    # current_data=[data_train[0][current_index:current_index+batchSize].to(device),data_train[1][current_index:current_index+batchSize].to(device)]
-                    # y_hat=_model(current_data[0],current_data[1])
                 elif train_type=="angle":
-                    # current_data=data_train[current_index:current_index+batchSize].to(device)
-                    y_hat=model(data)
+                    y_hat=Norm(model(data))
                 
                 if train_type=="particle":
                     loss=lossFunction(y_hat,label)
@@ -133,13 +144,8 @@ def train(dataLoader,batchSize:int,epoch:int,model,device,optimizer,lossFunction
                     # print(loss.sum().item(),loss_0.sum().item(),loss_1.sum().item())
                     # print(y_hat,current_label)
                 elif train_type=="angle":
-                    # print(y_hat.shape,current_label.shape)
                     loss=lossFunction(y_hat,label)
                     valid_number=valid_number+loss.sum().item()
-                    # print(valid_number,loss.sum().item())
-                    # if loss.sum().item()>100:
-                    #     print(current_label)
-                    # print(y_hat,current_label)
                     
                 loss.mean().backward()
                 optimizer.step()
@@ -152,16 +158,6 @@ def train(dataLoader,batchSize:int,epoch:int,model,device,optimizer,lossFunction
                             data_info.add_train_info({"batchSize":batchSize,"loss":loss.sum().item(),"loss_0":loss_0.sum().item(),"loss_1":loss_1.sum().item()})
                         elif train_type=="angle":
                             data_info.add_train_info({"batchSize":batchSize,"loss":loss.sum().item()})
-
-                    # if train_type=="particle":
-                    #     with torch.no_grad():
-                    #         data_info_item["train"].append({"batchSize":batchSize,"loss":loss.item(),"acc":s.sum().item()})
-                    # elif train_type=="position":
-                    #     with torch.no_grad():
-                    #         data_info_item["train"].append({"batchSize":batchSize,"loss":loss.sum().item(),"loss_0":loss_0.sum().item(),"loss_1":loss_1.sum().item()})
-                    # elif train_type=="angle":
-                    #     with torch.no_grad():
-                    #         data_info_item["train"].append({"batchSize":batchSize,"loss":loss.sum().item()})
 
                 current_index=current_index+batchSize
         
