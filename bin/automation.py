@@ -51,7 +51,7 @@ class Au(object):
             use_loading_process:int=None,
             current_file_name:str="main.py"
     ):
-        current_version="stable-1.1.0"
+        current_version="stable-1.1.1"
         log=Log(current_file_name,current_version)
         self.timeStamp=log.timeStamp
         with open(get_project_file_path("settings.json"),"r") as f:
@@ -100,23 +100,26 @@ class Au(object):
 
         log.info("USE MULTIPLE GPU",self.settings["GPU"]["multiple"])
         log.info("SET CUDA DEVICE",self.settings["GPU"]["mainGPUIndex"])
-        self.data_info.set_info("USE MULTIPLE GPU",self.settings["GPU"]["multiple"])
-        self.data_info.set_info("SET CUDA DEVICE",self.settings["GPU"]["mainGPUIndex"])
+        if need_data_info:
+            self.data_info.set_info("USE MULTIPLE GPU",self.settings["GPU"]["multiple"])
+            self.data_info.set_info("SET CUDA DEVICE",self.settings["GPU"]["mainGPUIndex"])
         if self.settings["GPU"]["multiple"]:
             if self.settings["GPU"]["mainGPUIndex"]>=torch.cuda.device_count():
                 raise Exception("GPU index out of range")
-            for index in self.settings["GPU"]["multipleGPUIndex"]:
-                if index >=torch.cuda.device_count():
-                    raise Exception("Multiple GPU index out of range")
+            if max(self.settings["GPU"]["multipleGPUIndex"])>=torch.cuda.device_count():
+                raise Exception("Multiple GPU index out of range")
             log.info("MULTIPLE GPU INDEX",self.settings["GPU"]["multipleGPUIndex"])
-            self.data_info.set_info("MULTIPLE GPU INDEX",self.settings["GPU"]["multipleGPUIndex"])
+            if need_data_info:
+                self.data_info.set_info("MULTIPLE GPU INDEX",self.settings["GPU"]["multipleGPUIndex"])
 
         if use_loading_process==None:
             log.info("use_loading_process","No_Multi_Process")
-            self.data_info.set_info("use_loading_process","No_Multi_Process")
+            if need_data_info:
+                self.data_info.set_info("use_loading_process","No_Multi_Process")
         else:
             log.info("use_loading_process",use_loading_process)
-            self.data_info.set_info("use_loading_process",use_loading_process)
+            if need_data_info:
+                self.data_info.set_info("use_loading_process",use_loading_process)
 
         self.lt=LeftTime()
         self.lt.startLoading(len(gamma_energy_list)*particle_number_gamma+len(proton_energy_list)*particle_number_proton)
@@ -300,6 +303,17 @@ class Au(object):
         # self.model=nn.DataParallel(self.model)
 
         if self.settings["GPU"]["multiple"]:
+            # 保证settings["GPU"]["multipleGPUIndex"]的唯一性
+            self.settings["GPU"]["multipleGPUIndex"]=list(set(self.settings["GPU"]["multipleGPUIndex"]))
+            self.settings["GPU"]["multipleGPUIndex"].sort()
+            # 判断multipleGPUIndex是否包含mainGPUIndex
+            if self.settings["GPU"]["mainGPUIndex"] in self.settings["GPU"]["multipleGPUIndex"]:
+                # 将mainGPUIndex提到最前
+                self.settings["GPU"]["multipleGPUIndex"].remove(self.settings["GPU"]["mainGPUIndex"])
+                self.settings["GPU"]["multipleGPUIndex"].insert(0,self.settings["GPU"]["mainGPUIndex"])
+            else:
+                raise Exception("mainGPUIndex not in multipleGPUIndex")
+
             self.device=torch.device("cuda:"+str(self.settings["GPU"]["mainGPUIndex"]))
             self.model=nn.DataParallel(state['model'].to(self.device),device_ids=self.settings["GPU"]["multipleGPUIndex"],output_device=self.settings["GPU"]["mainGPUIndex"])
         else:

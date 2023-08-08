@@ -48,7 +48,8 @@ def load_data(particle:str,energy:int,total_number:int,allow_pic_number_list:lis
                         old_file_name=os.path.join(load_path,file_name)
             if data_file_name!=None:
                 break
-
+    
+    index_info=None
     if data_file_name:
         with open(data_file_name,"rb") as f:
             pcl=pickle.load(f)
@@ -68,25 +69,63 @@ def load_data(particle:str,energy:int,total_number:int,allow_pic_number_list:lis
             log.write(particle+"_"+str(energy)+" was loaded from the cache file: "+data_file_name)
         
         return data_tensor,label_tensor,total_number,min_pix
-    
 
-    data_tensor=None
-    label_tensor=None
-    current_number=0
-    current_ignore=0
+    elif old_file_name:
+        with open(old_file_name,"rb") as f:
+            pcl=pickle.load(f)
+            f.close()  
+        if train_type=="energy":
+            data_tensor=[torch.tensor(pcl["data"][0][:total_number],dtype=torch.float32),torch.tensor(pcl["data"][1][:total_number],dtype=torch.float32)]
+            data_tensor=torch.tensor(pcl["label"][:total_number],dtype=torch.float32)
+        elif train_type=="particle":
+            data_tensor=torch.tensor(pcl["data"][:total_number],dtype=torch.float32)
+            label_tensor=torch.tensor(pcl["label"][:total_number],dtype=torch.int64)
+        else:
+            data_tensor=torch.tensor(pcl["data"][:total_number],dtype=torch.float32)
+            label_tensor=torch.tensor(pcl["label"][:total_number],dtype=torch.float32)
+        index_info=pcl["index_info"]
+        current_number=int(matches[0][1])
+
+        print(particle+"_"+str(energy)+" cache file ("+old_file_name+") updating...")
+        if log:
+            log.write(particle+"_"+str(energy)+" cache file ("+old_file_name+") updating...")
+
+    else:
+        data_tensor=None
+        label_tensor=None
+        current_number=0
+
+    current_index_info={"1":0,"2":0,"3":0,"4":0}
     is_break=False
+
     for pic in allow_pic_number_list:
         if is_break:
             break
         data_all_list=jsonData["c"+str(pic)]
-        for pic_item in data_all_list:
-            if current_ignore<ignore_number:
-                current_ignore=current_ignore+1
+        end_index=len(data_all_list)
+        # 判断开始序号
+        if index_info:
+            if index_info[str(pic)]>=(end_index-1):
+                # 超出最大范围
                 continue
-            
-            # if pic_item["info"]["recPhi"]==1000 or pic_item["info"]["recPhi"]==-1 or pic_item["info"]["rcoreX"]==0 or pic_item["info"]["rcoreX"]==-1:
+            else:
+                start_index=index_info[str(pic)]+1
+        elif ignore_number!=0:
+            if ignore_number>=(end_index-1):
+                continue
+            else:
+                start_index=ignore_number+1
+        else:
+            start_index=0
+        for m in range(start_index,end_index):
+            pic_item=data_all_list[m]
+        # for pic_item in data_all_list:
+            # if current_ignore<ignore_number:
+            #     current_ignore=current_ignore+1
             #     continue
-            
+            # if index_info and pic_item["index"]<=index_info[str(pic)]:
+            #     continue
+
             if train_type=="energy":
                 fin_energy=torch.tensor([
                     [
@@ -184,42 +223,52 @@ def load_data(particle:str,energy:int,total_number:int,allow_pic_number_list:lis
                     
                     # data_tensor=torch.cat((data_tensor,fin.reshape(1,4,128,128)))
                     label_tensor=torch.cat((label_tensor,fin_label.reshape(1,2)))
+            
             current_number=current_number+1
+            current_index_info[str(pic)]=pic_item["index"]
             if current_number>=total_number:
                 is_break=True
                 break
-    # print(particle+str(energy)+" loading finish with length: "+str(current_number))
-    # if log!=None:
-    #     log.write(particle+str(energy)+" loading finish with length: "+str(current_number))
+
     if train_type=="particle" or train_type=="energy":
         label_tensor=load_label(label,current_number,label_dtype)
     
     if settings["tempData"]["autoSave"]:
-        if os.path.exists(settings["tempData"]["savePath"]):
-            data_file_name=particle+"_"+str(energy)+"_"+str(allow_pic_number_list)+"_"+str(min_pix)+"_"+str(pic_size)+"_"+str(train_type)+"_"+str(centering)+"_"+str(use_weight)+"("+str(current_number)+")"+".data"
-            data_full_path=os.path.join(settings["tempData"]["savePath"],data_file_name)
+        if current_index_info!={"1":0,"2":0,"3":0,"4":0}:
+            if os.path.exists(settings["tempData"]["savePath"]):
+                data_file_name=particle+"_"+str(energy)+"_"+str(allow_pic_number_list)+"_"+str(min_pix)+"_"+str(pic_size)+"_"+str(train_type)+"_"+str(centering)+"_"+str(use_weight)+"("+str(current_number)+")"+".data"
+                data_full_path=os.path.join(settings["tempData"]["savePath"],data_file_name)
 
-            with open(data_full_path,"wb") as f:
-                if train_type=="energy":
-                    pickle.dump({"data":[data_tensor[0].tolist(),data_tensor[1].tolist()],"label":label_tensor.tolist()},f)
-                else:
-                    pickle.dump({"data":data_tensor.tolist(),"label":label_tensor.tolist()},f)
-                f.close()
-            
-            # 删除旧文件
-            if old_file_name:
-                os.remove(old_file_name)
-                print("old file has been deleted: "+old_file_name)
+                with open(data_full_path,"wb") as f:
+                    if train_type=="energy":
+                        pickle.dump({"index_info":current_index_info,"data":[data_tensor[0].tolist(),data_tensor[1].tolist()],"label":label_tensor.tolist()},f)
+                    else:
+                        pickle.dump({"index_info":current_index_info,"data":data_tensor.tolist(),"label":label_tensor.tolist()},f)
+                    f.close()
+                
+                # 删除旧文件
+                if old_file_name:
+                    os.remove(old_file_name)
+                    print("old file has been deleted: "+old_file_name)
+                    if log:
+                        log.write("old file has been deleted: "+old_file_name)
+                
+                print(particle+"_"+str(energy)+" has been cached to: "+data_full_path)
                 if log:
-                    log.write("old file has been deleted: "+old_file_name)
-            
-            print(particle+"_"+str(energy)+" has been cached to: "+data_full_path)
-            if log:
-                log.write(particle+"_"+str(energy)+" has been cached to: "+data_full_path)
+                    log.write(particle+"_"+str(energy)+" has been cached to: "+data_full_path)
+            else:
+                print("File cache failure (reason: invalid path "+settings["tempData"]["savePath"]+")")
+                if log:
+                    log.write("File cache failure (reason: invalid path "+settings["tempData"]["savePath"]+")")
         else:
-            print("File cache failure: invalid path: "+settings["tempData"]["savePath"])
-            if log:
-                log.write("File cache failure: invalid path: "+settings["tempData"]["savePath"])
+            if ignore_number!=0:
+                print("File cache update failure (reason: all origin data ignored)")
+                if log:
+                    log.write("File cache update failure (reason: all origin data ignored)")
+            else:
+                print("File cache update failure (reason: all origin data cached)")
+                if log:
+                    log.write("File cache update failure (reason: all origin data cached)")
 
     return data_tensor,label_tensor,current_number,min_pix
 

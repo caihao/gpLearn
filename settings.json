@@ -8,13 +8,13 @@
     },
     "GPU":{
         "mainGPUIndex":1,
-        "multiple":false,
+        "multiple":true,
         "multipleGPUIndex":[0,1]
     },
     "tempData":{
         "autoSave":true,
-        "savePath":"/data2/cay/GPLearn",
-        "loadPath":["/data2/cay/GPLearn"]
+        "savePath":"data2/cay/GPLearn",
+        "loadPath":["data2/cay/GPLearn"]
     },
     "drawing":{
         "result":{
