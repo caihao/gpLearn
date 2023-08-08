@@ -13,7 +13,7 @@ from model.ResNet_custom import ResNet_custom
 from model.ResNet import ResNet18
 from model.ResNet import ResNet34
 
-def initializeModel(model_name:str,input_channel:int,input_size_x:int,input_size_y:int,output_size:int,model_type:str,other_init_keys:list=None,input_info:int=None):
+def initializeModel(input_channel:int,input_size_x:int,input_size_y:int,output_size:int,model_type:str,input_info:int=None):
     if model_type=="ResNet_old":
         model=ResNet_old(input_channel,input_size_x,input_size_y,output_size,init_weights=True)
     elif model_type=="LinearNet":
@@ -43,11 +43,13 @@ def initializeModel(model_name:str,input_channel:int,input_size_x:int,input_size
     else:
         raise Exception("invalid model type")
     
-    model_state={'model':model}
-    for key in other_init_keys:
-        model_state[key]=0
-    if model_name[-3:]==".pt":
-        torch.save(model_state,get_project_file_path("data/model/"+model_name))
-    else:
-        torch.save(model_state,get_project_file_path("data/model/"+model_name+".pt"))
+    return model
+    
+    # model_state={'model':model}
+    # for key in other_init_keys:
+    #     model_state[key]=0
+    # if model_name[-3:]==".pt":
+    #     torch.save(model_state,get_project_file_path("data/model/"+model_name))
+    # else:
+    #     torch.save(model_state,get_project_file_path("data/model/"+model_name+".pt"))
 

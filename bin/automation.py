@@ -51,7 +51,7 @@ class Au(object):
             use_loading_process:int=None,
             current_file_name:str="main.py"
     ):
-        current_version="stable-1.1.1"
+        current_version="stable-1.1.1(a)"
         log=Log(current_file_name,current_version)
         self.timeStamp=log.timeStamp
         with open(get_project_file_path("settings.json"),"r") as f:
@@ -277,30 +277,38 @@ class Au(object):
         self.log.info("modelName",modelName)
         self.log.info("model_type",model_type)
         self.log.info("is_modelInit",modelInit)
-        if modelInit:
-            self.log.write("model initializing...")
-            if self.train_type=="particle":
-                initializeModel(modelName,1,self.pic_size*2,self.pic_size*2,2,model_type,["acc","q"])
-            elif self.train_type=="energy":
-                initializeModel(modelName,4,self.pic_size,self.pic_size,1,model_type,["l"],input_info=4)
-            elif self.train_type=="position":
-                initializeModel(modelName,1,self.pic_size*2,self.pic_size*2,2,model_type,["l","l_0","l_1"],input_info=2)
-            elif self.train_type=="angle":
-                initializeModel(modelName,4,self.pic_size,self.pic_size,2,model_type,["l"],input_info=2)
-                # initializeModel(modelName,4,self.pic_size*2,self.pic_size*2,2,model_type,["l"],input_info=2)
-            else:
-                self.log.error("invalid train type")
-                raise Exception("invalid train type")
-            self.log.write("model initializing finish")
-        self.log.write("model loading...")
-        
-        self.modelfile=get_project_file_path("data/model/"+modelName)
-        state=torch.load(self.modelfile)
 
-        # self.device=torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        # self.model=state['model'].to(self.device)
-        # self.optimizer=torch.optim.AdamW(self.model.parameters(),8e-6)
-        # self.model=nn.DataParallel(self.model)
+        print("model initializing...")
+        self.log.write("model initializing...")
+        if self.train_type=="particle":
+            self.model=initializeModel(1,self.pic_size*2,self.pic_size*2,2,model_type,["acc","q"])
+            state={"model":None,"acc":0,"q":0}
+        elif self.train_type=="energy":
+            self.model=initializeModel(4,self.pic_size,self.pic_size,1,model_type,["l"],input_info=4)
+            state={"model":None,"l":0}
+        elif self.train_type=="position":
+            self.model=initializeModel(1,self.pic_size*2,self.pic_size*2,2,model_type,["l","l_0","l_1"])
+            state={"model":None,"l":0,"l_0":0,"l_1":0}
+        elif self.train_type=="angle":
+            self.model=initializeModel(4,self.pic_size,self.pic_size,2,model_type,["l"])
+            # self.model=initializeModel(modelName,4,self.pic_size*2,self.pic_size*2,2,model_type,["l"])
+            state={"model":None,"l":0}
+        else:
+            self.log.error("invalid train type")
+            raise Exception("invalid train type")
+
+        self.modelfile=get_project_file_path("data/model/"+modelName)
+        if not modelInit:
+            print("model loading...")
+            self.log.write("model loading...")
+            if os.path.exists(self.modelfile):
+                state=torch.load(self.modelfile)
+            else:
+                raise Exception("model_file not exist")
+            try:
+                self.model.load_state_dict(state["model"])
+            except:
+                raise Exception("model_type not match")
 
         if self.settings["GPU"]["multiple"]:
             # 保证settings["GPU"]["multipleGPUIndex"]的唯一性
@@ -315,10 +323,10 @@ class Au(object):
                 raise Exception("mainGPUIndex not in multipleGPUIndex")
 
             self.device=torch.device("cuda:"+str(self.settings["GPU"]["mainGPUIndex"]))
-            self.model=nn.DataParallel(state['model'].to(self.device),device_ids=self.settings["GPU"]["multipleGPUIndex"],output_device=self.settings["GPU"]["mainGPUIndex"])
+            self.model=nn.DataParallel(self.model.to(self.device),device_ids=self.settings["GPU"]["multipleGPUIndex"],output_device=self.settings["GPU"]["mainGPUIndex"])
         else:
             self.device=torch.device("cuda:"+str(self.settings["GPU"]["mainGPUIndex"]) if torch.cuda.is_available() else 'cpu')
-            self.model=state['model'].to(self.device)
+            self.model=self.model.to(self.device)
 
         if self.train_type=="particle":
             self.acc=state['acc']
@@ -390,19 +398,19 @@ class Au(object):
             self.log.write("training on step:"+str(i+1)+" with lr:"+str(se_lr)+" ...")
             print("training on step:"+str(i+1)+" with lr:"+str(se_lr)+" ...")
             if self.train_type=="particle":
-                self.model,return_result=train(self.dataLoader,self.batch_size,epoch_step_list[i],self.model,self.device,self.optimizer,self.loss_function,self.train_type,self.test_list,{"acc":self.acc,"q":self.q,"model_file":self.modelfile},self.log,self.data_info,self.lt)
+                self.model,return_result=train(self.dataLoader,self.batch_size,epoch_step_list[i],self.model,self.device,self.optimizer,self.loss_function,self.train_type,self.test_list,{"acc":self.acc,"q":self.q,"model_file":self.modelfile},self.settings,self.log,self.data_info,self.lt)
                 self.acc=return_result["acc"]
                 self.q=return_result["q"]
             elif self.train_type=="energy":
-                self.model,return_result=train(self.dataLoader,self.batch_size,epoch_step_list[i],self.model,self.device,self.optimizer,self.loss_function,self.train_type,self.test_list,{"l":self.l,"model_file":self.modelfile},self.log,self.data_info,self.lt)
+                self.model,return_result=train(self.dataLoader,self.batch_size,epoch_step_list[i],self.model,self.device,self.optimizer,self.loss_function,self.train_type,self.test_list,{"l":self.l,"model_file":self.modelfile},self.settings,self.log,self.data_info,self.lt)
                 self.l=return_result["l"]
             elif self.train_type=="position":
-                self.model,return_result=train(self.dataLoader,self.batch_size,epoch_step_list[i],self.model,self.device,self.optimizer,self.loss_function,self.train_type,self.test_list,{"l":self.l,"l_0":self.l_0,"l_1":self.l_1,"model_file":self.modelfile},self.log,self.data_info,self.lt)
+                self.model,return_result=train(self.dataLoader,self.batch_size,epoch_step_list[i],self.model,self.device,self.optimizer,self.loss_function,self.train_type,self.test_list,{"l":self.l,"l_0":self.l_0,"l_1":self.l_1,"model_file":self.modelfile},self.settings,self.log,self.data_info,self.lt)
                 self.l=return_result["l"]
                 self.l_0=return_result["l_0"]
                 self.l_1=return_result["l_1"]
             elif self.train_type=="angle":
-                self.model,return_result=train(self.dataLoader,self.batch_size,epoch_step_list[i],self.model,self.device,self.optimizer,self.loss_function,self.train_type,self.test_list,{"l":self.l,"model_file":self.modelfile},self.log,self.data_info,self.lt)
+                self.model,return_result=train(self.dataLoader,self.batch_size,epoch_step_list[i],self.model,self.device,self.optimizer,self.loss_function,self.train_type,self.test_list,{"l":self.l,"model_file":self.modelfile},self.settings,self.log,self.data_info,self.lt)
                 self.l=return_result["l"]
             
             self.log.write("step "+str(i+1)+" finish")

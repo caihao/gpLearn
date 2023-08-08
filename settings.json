@@ -7,14 +7,14 @@
         "proton":{"10":5,"20":5,"30":5,"40":5,"50":5,"60":15,"70":15,"80":15,"90":15,"100":20,"200":20,"300":20,"400":20,"500":20,"600":20,"700":20,"800":20,"900":40,"1000":45,"2000":50,"3000":50,"4000":50,"5000":50,"6000":50,"7000":50,"8000":50,"9000":50,"10000":50}
     },
     "GPU":{
-        "mainGPUIndex":1,
+        "mainGPUIndex":0,
         "multiple":true,
         "multipleGPUIndex":[0,1]
     },
     "tempData":{
         "autoSave":true,
-        "savePath":"data2/cay/GPLearn",
-        "loadPath":["data2/cay/GPLearn"]
+        "savePath":"/data2/cay/GPLearn",
+        "loadPath":["/data2/cay/GPLearn"]
     },
     "drawing":{
         "result":{

@@ -1,5 +1,7 @@
 import torch
+import torch.nn as nn
 import math
+import json
 
 from bin.test import test
 from utils.tensorShuffle import tensor_shuffle
@@ -19,7 +21,7 @@ def Norm(X:torch.tensor):
     else:
         return X/n
 
-def train(dataLoader,batchSize:int,epoch:int,model,device,optimizer,lossFunction,train_type:str,test_list:dict=None,current_result:dict=None,log:Log=None,data_info:DataInfo=None,leftTime:LeftTime=None):
+def train(dataLoader,batchSize:int,epoch:int,model:nn.Module,device,optimizer,lossFunction,train_type:str,test_list:dict=None,current_result:dict=None,settings:json=None,log:Log=None,data_info:DataInfo=None,leftTime:LeftTime=None):
     model.train()
     if train_type=="particle":
         self_acc=current_result["acc"]
@@ -208,7 +210,10 @@ def train(dataLoader,batchSize:int,epoch:int,model,device,optimizer,lossFunction
             print(res)
 
             if q>=self_q:
-                torch.save({'model':model,'acc':acc,'q':q},current_result["model_file"])
+                if settings["GPU"]["multiple"]:
+                    torch.save({'model':model.module.state_dict(),'acc':acc,'q':q},current_result["model_file"])
+                else:
+                    torch.save({'model':model.state_dict(),'acc':acc,'q':q},current_result["model_file"])
                 self_acc=acc
                 self_q=q
                 log.write("model update")
@@ -235,7 +240,10 @@ def train(dataLoader,batchSize:int,epoch:int,model,device,optimizer,lossFunction
             print(res)
 
             if l<=self_l or self_l==0:
-                torch.save({'model':model,'l':l},current_result["model_file"])
+                if settings["GPU"]["multiple"]:
+                    torch.save({'model':model.module.state_dict(),'l':l},current_result["model_file"])
+                else:
+                    torch.save({'model':model.state_dict(),'l':l},current_result["model_file"])
                 self_l=l
                 log.write("model update")
                 print("model update")
@@ -276,7 +284,10 @@ def train(dataLoader,batchSize:int,epoch:int,model,device,optimizer,lossFunction
             print(res_print)
 
             if l<=self_l or self_l==0:
-                torch.save({'model':model,'l':l,'l_0':l_0,'l_1':l_1},current_result["model_file"])
+                if settings["GPU"]["multiple"]:
+                    torch.save({'model':model.module.state_dict(),'l':l,'l_0':l_0,'l_1':l_1},current_result["model_file"])
+                else:
+                    torch.save({'model':model.state_dict(),'l':l,'l_0':l_0,'l_1':l_1},current_result["model_file"])
                 self_l=l
                 self_l_0=l_0
                 self_l_1=l_1
@@ -304,7 +315,10 @@ def train(dataLoader,batchSize:int,epoch:int,model,device,optimizer,lossFunction
             print(res)
 
             if l<=self_l or self_l==0:
-                torch.save({'model':model,'l':l},current_result["model_file"])
+                if settings["GPU"]["multiple"]:
+                    torch.save({'model':model.module.state_dict(),'l':l},current_result["model_file"])
+                else:
+                    torch.save({'model':model.state_dict(),'l':l},current_result["model_file"])
                 self_l=l
                 log.write("model update")
                 print("model update")
