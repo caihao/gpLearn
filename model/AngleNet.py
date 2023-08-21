@@ -67,10 +67,11 @@ class ResAngleNet(nn.Module):
     def __init__(self, input_channel, input_size_x, input_size_y, output_size):
         super().__init__()
         self.features = nn.Sequential(
-            Residual3D(input_channel, 96),
-            Residual3D(96, 192),
-            Residual3D(192, 384),
-            Residual3D(384, 512),
+            Residual3D(input_channel, 16),
+            Residual3D(16, 64),
+            Residual3D(64, 128),
+            Residual3D(128, 256),
+            Residual3D(256, 512),
             Residual3D(512, 512),
             nn.AdaptiveAvgPool3d((4,4,4)),
             nn.Flatten()
@@ -78,11 +79,11 @@ class ResAngleNet(nn.Module):
         x = torch.rand((1, input_channel, input_size_x, input_size_y, 4))
         linear_size = self.features(x).size(-1)
         self.classifier = nn.Sequential(
-            nn.Dropout(0.5),
+            nn.Dropout(0.4),
             nn.Linear(linear_size, 256),
-            nn.Dropout(0.5),
+            nn.Dropout(0.4),
             nn.Linear(256, 64),
-            nn.Dropout(0.5),
+            nn.Dropout(0.4),
             nn.Linear(64, output_size),
         )
 

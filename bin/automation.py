@@ -51,7 +51,7 @@ class Au(object):
             use_loading_process:int=None,
             current_file_name:str="main.py"
     ):
-        current_version="stable-1.1.1(a)"
+        current_version="stable-1.1.2"
         log=Log(current_file_name,current_version)
         self.timeStamp=log.timeStamp
         with open(get_project_file_path("settings.json"),"r") as f:
@@ -135,13 +135,13 @@ class Au(object):
         
         for i in gamma_energy_list:
             if train_type=="particle":
-                data,label,final_length,min_pix=load_data("gamma" if use_data_type==None else "gamma_"+use_data_type,i,particle_number_gamma,allow_pic_number_list,self.settings if limit_min_pix_number else None,ignore_head_number,pic_size,train_type,centering,use_weight,0,torch.int64,self.settings,log)
+                data,label,final_length,min_pix=load_data("gamma" if use_data_type==None else "gamma_"+use_data_type,i,particle_number_gamma,allow_pic_number_list,limit_min_pix_number,ignore_head_number,pic_size,train_type,centering,use_weight,0,torch.int64,self.settings,log)
             elif train_type=="energy":
-                data,label,final_length,min_pix=load_data("gamma" if use_data_type==None else "gamma_"+use_data_type,i,particle_number_gamma,allow_pic_number_list,self.settings if limit_min_pix_number else None,ignore_head_number,pic_size,train_type,centering,use_weight,i/100,torch.float32,self.settings,log)
+                data,label,final_length,min_pix=load_data("gamma" if use_data_type==None else "gamma_"+use_data_type,i,particle_number_gamma,allow_pic_number_list,limit_min_pix_number,ignore_head_number,pic_size,train_type,centering,use_weight,i/100,torch.float32,self.settings,log)
             elif train_type=="position":
-                data,label,final_length,min_pix=load_data("gamma" if use_data_type==None else "gamma_"+use_data_type,i,particle_number_gamma,allow_pic_number_list,self.settings if limit_min_pix_number else None,ignore_head_number,pic_size,train_type,centering,use_weight,None,None,self.settings,log)
+                data,label,final_length,min_pix=load_data("gamma" if use_data_type==None else "gamma_"+use_data_type,i,particle_number_gamma,allow_pic_number_list,limit_min_pix_number,ignore_head_number,pic_size,train_type,centering,use_weight,None,None,self.settings,log)
             elif train_type=="angle":
-                data,label,final_length,min_pix=load_data("gamma" if use_data_type==None else "gamma_"+use_data_type,i,particle_number_gamma,allow_pic_number_list,self.settings if limit_min_pix_number else None,ignore_head_number,pic_size,train_type,centering,use_weight,None,None,self.settings,log)
+                data,label,final_length,min_pix=load_data("gamma" if use_data_type==None else "gamma_"+use_data_type,i,particle_number_gamma,allow_pic_number_list,limit_min_pix_number,ignore_head_number,pic_size,train_type,centering,use_weight,None,None,self.settings,log)
             else:
                 raise Exception("invalid train type")
 
@@ -200,13 +200,13 @@ class Au(object):
 
         for i in proton_energy_list:
             if train_type=="particle":
-                data,label,final_length,min_pix=load_data("proton" if use_data_type==None else "proton_"+use_data_type,i,particle_number_proton,allow_pic_number_list,self.settings if limit_min_pix_number else None,ignore_head_number,pic_size,train_type,centering,use_weight,1,torch.int64,self.settings,log)
+                data,label,final_length,min_pix=load_data("proton" if use_data_type==None else "proton_"+use_data_type,i,particle_number_proton,allow_pic_number_list,limit_min_pix_number,ignore_head_number,pic_size,train_type,centering,use_weight,1,torch.int64,self.settings,log)
             elif train_type=="energy":
-                data,label,final_length,min_pix=load_data("proton" if use_data_type==None else "proton_"+use_data_type,i,particle_number_proton,allow_pic_number_list,self.settings if limit_min_pix_number else None,ignore_head_number,pic_size,train_type,centering,use_weight,i/100,torch.float32,self.settings,log)
+                data,label,final_length,min_pix=load_data("proton" if use_data_type==None else "proton_"+use_data_type,i,particle_number_proton,allow_pic_number_list,limit_min_pix_number,ignore_head_number,pic_size,train_type,centering,use_weight,i/100,torch.float32,self.settings,log)
             elif train_type=="position":
-                data,label,final_length,min_pix=load_data("proton" if use_data_type==None else "proton_"+use_data_type,i,particle_number_proton,allow_pic_number_list,self.settings if limit_min_pix_number else None,ignore_head_number,pic_size,train_type,centering,use_weight,None,None,self.settings,log)
+                data,label,final_length,min_pix=load_data("proton" if use_data_type==None else "proton_"+use_data_type,i,particle_number_proton,allow_pic_number_list,limit_min_pix_number,ignore_head_number,pic_size,train_type,centering,use_weight,None,None,self.settings,log)
             elif train_type=="angle":
-                data,label,final_length,min_pix=load_data("proton" if use_data_type==None else "proton_"+use_data_type,i,particle_number_proton,allow_pic_number_list,self.settings if limit_min_pix_number else None,ignore_head_number,pic_size,train_type,centering,use_weight,None,None,self.settings,log)
+                data,label,final_length,min_pix=load_data("proton" if use_data_type==None else "proton_"+use_data_type,i,particle_number_proton,allow_pic_number_list,limit_min_pix_number,ignore_head_number,pic_size,train_type,centering,use_weight,None,None,self.settings,log)
             
             if train_data==None:
                 if train_type=="particle":

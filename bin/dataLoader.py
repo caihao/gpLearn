@@ -9,13 +9,17 @@ from utils.path import get_project_file_path
 from utils.locationTransform import coordinate_transform,coordinate_transform_angle
 from utils.log import Log    
 
-def load_data(particle:str,energy:int,total_number:int,allow_pic_number_list:list=[4,3,2,1],limit_min_pix_settings:json=None,ignore_number:int=0,pic_size:int=64,train_type:str="particle",centering:bool=True,use_weight:bool=False,label=None,label_dtype=None,settings:json=None,log:Log=None):
+def load_data(particle:str,energy:int,total_number:int,allow_pic_number_list:list=[4,3,2,1],limit_min_pix_settings:bool=False,ignore_number:int=0,pic_size:int=64,train_type:str="particle",centering:bool=True,use_weight:bool=False,label=None,label_dtype=None,settings:json=None,log:Log=None):
+    if settings==None:
+        raise Exception("need settings")
+    
     jsonFileName=get_project_file_path("data/origin/"+particle+"_"+str(energy)+".json")
     with open(jsonFileName,'r') as f:
         jsonData=json.load(f)
         f.close()
 
     min_pix=0
+    min_value=0
     if limit_min_pix_settings:
         # with open(get_project_file_path("settings.json"),"r") as f:
         #     settings=json.load(f)
@@ -26,11 +30,16 @@ def load_data(particle:str,energy:int,total_number:int,allow_pic_number_list:lis
             par="proton"
         else:
             raise Exception("invalid particle type")
-        if limit_min_pix_settings["loading_min_pix"]["uniformThreshold"]:
-            min_pix=limit_min_pix_settings["loading_min_pix"][par+"Uniform"]
+        if settings["loading_min_pix"]["uniformThreshold"]:
+            min_pix=settings["loading_min_pix"][par+"Uniform"]
         else:
-            if str(energy) in limit_min_pix_settings["loading_min_pix"][par].keys():
-                min_pix=limit_min_pix_settings["loading_min_pix"][par][str(energy)]
+            if str(energy) in settings["loading_min_pix"][par].keys():
+                min_pix=settings["loading_min_pix"][par][str(energy)]
+        if settings["loading_min_value"]["uniformThreshold"]:
+            min_value=settings["loading_min_value"][par+"Uniform"]
+        else:
+            if str(energy) in settings["loading_min_value"][par].keys():
+                min_value=settings["loading_min_value"][par][str(energy)]
 
     data_file_name=None
     old_file_name=None
@@ -41,14 +50,16 @@ def load_data(particle:str,energy:int,total_number:int,allow_pic_number_list:lis
                 matches=re.findall(pattern,file_name)
                 if len(matches)==0:
                     continue
-                if matches[0][0]==(particle+"_"+str(energy)+"_"+str(allow_pic_number_list)+"_"+str(min_pix)+"_"+str(pic_size)+"_"+str(train_type)+"_"+str(centering)+"_"+str(use_weight)):
+                if matches[0][0]==(particle+"_"+str(energy)+"_"+str(allow_pic_number_list)+"_"+str(min_pix)+"_"+str(min_value)+"_"+str(pic_size)+"_"+str(train_type)+"_"+str(centering)+"_"+str(use_weight)):
                     if total_number<=int(matches[0][1]):
                         data_file_name=os.path.join(load_path,file_name)
+                        break
                     else:
                         old_file_name=os.path.join(load_path,file_name)
-            if data_file_name!=None:
+                        break
+            if data_file_name!=None or old_file_name!=None:
                 break
-    
+
     index_info=None
     if data_file_name:
         with open(data_file_name,"rb") as f:
@@ -103,6 +114,7 @@ def load_data(particle:str,energy:int,total_number:int,allow_pic_number_list:lis
             break
         data_all_list=jsonData["c"+str(pic)]
         end_index=len(data_all_list)
+        
         # 判断开始序号
         if index_info:
             if index_info[str(pic)]>=(end_index-1):
@@ -117,6 +129,7 @@ def load_data(particle:str,energy:int,total_number:int,allow_pic_number_list:lis
                 start_index=ignore_number+1
         else:
             start_index=0
+        
         for m in range(start_index,end_index):
             pic_item=data_all_list[m]
         # for pic_item in data_all_list:
@@ -136,6 +149,13 @@ def load_data(particle:str,energy:int,total_number:int,allow_pic_number_list:lis
                 ],dtype=torch.float32)
                 fin_energy=torch.unsqueeze(fin_energy,dim=0)
             
+            if min_value!=0:
+                new_pic_item={"index":pic_item["index"],"1":[],"2":[],"3":[],"4":[],"info":pic_item["info"]}
+                for a in range(4):
+                    for b in pic_item[str(a+1)]:
+                        if b[3]>=min_value:
+                            new_pic_item[str(a+1)].append(b)
+                pic_item=new_pic_item
             if min_pix!=0:
                 pic_number=len(pic_item["1"])+len(pic_item["2"])+len(pic_item["3"])+len(pic_item["4"])
                 if pic_number<min_pix:
@@ -236,7 +256,7 @@ def load_data(particle:str,energy:int,total_number:int,allow_pic_number_list:lis
     if settings["tempData"]["autoSave"]:
         if current_index_info!={"1":0,"2":0,"3":0,"4":0}:
             if os.path.exists(settings["tempData"]["savePath"]):
-                data_file_name=particle+"_"+str(energy)+"_"+str(allow_pic_number_list)+"_"+str(min_pix)+"_"+str(pic_size)+"_"+str(train_type)+"_"+str(centering)+"_"+str(use_weight)+"("+str(current_number)+")"+".data"
+                data_file_name=particle+"_"+str(energy)+"_"+str(allow_pic_number_list)+"_"+str(min_pix)+"_"+str(min_value)+"_"+str(pic_size)+"_"+str(train_type)+"_"+str(centering)+"_"+str(use_weight)+"("+str(current_number)+")"+".data"
                 data_full_path=os.path.join(settings["tempData"]["savePath"],data_file_name)
 
                 with open(data_full_path,"wb") as f:
@@ -257,18 +277,18 @@ def load_data(particle:str,energy:int,total_number:int,allow_pic_number_list:lis
                 if log:
                     log.write(particle+"_"+str(energy)+" has been cached to: "+data_full_path)
             else:
-                print("File cache failure (reason: invalid path "+settings["tempData"]["savePath"]+")")
+                print("File cache fail (reason: invalid path "+settings["tempData"]["savePath"]+")")
                 if log:
-                    log.write("File cache failure (reason: invalid path "+settings["tempData"]["savePath"]+")")
+                    log.write("File cache fail (reason: invalid path "+settings["tempData"]["savePath"]+")")
         else:
             if ignore_number!=0:
-                print("File cache update failure (reason: all origin data ignored)")
+                print("File cache update fail (reason: all origin data ignored)")
                 if log:
-                    log.write("File cache update failure (reason: all origin data ignored)")
+                    log.write("File cache update fail (reason: all origin data ignored)")
             else:
-                print("File cache update failure (reason: all origin data cached)")
+                print("File cache update fail (reason: all origin data cached)")
                 if log:
-                    log.write("File cache update failure (reason: all origin data cached)")
+                    log.write("File cache update fail (reason: all origin data cached)")
 
     return data_tensor,label_tensor,current_number,min_pix
 
