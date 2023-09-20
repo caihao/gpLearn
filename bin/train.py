@@ -129,6 +129,7 @@ def train(dataLoader,batchSize:int,epoch:int,model:nn.Module,device,optimizer,lo
                     y_hat=model(data)
                 elif train_type=="angle":
                     y_hat=Norm(model(data))
+                    # y_hat=model(data)
                 
                 if train_type=="particle":
                     loss=lossFunction(y_hat,label)
@@ -329,7 +330,7 @@ def train(dataLoader,batchSize:int,epoch:int,model:nn.Module,device,optimizer,lo
 
         if data_info:
             data_info.finish_test_info()
-
+    
     if train_type=="particle":
         return model,{"acc":self_acc,"q":self_q}
     elif train_type=="energy":

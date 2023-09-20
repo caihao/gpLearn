@@ -1,5 +1,6 @@
 import time
 import pickle
+import math
 
 from utils.path import get_project_file_path
 
@@ -85,22 +86,23 @@ class DataInfo(object):
     def add_test_info(self,key:str,info_dict:dict):
         info_dict.update({"time":int(time.time())})
         self.test_temp[key]=info_dict
-        # self.test_temp.append(info_dict.update({"time":int(time.time())}))
 
     def finish_train_info(self):
         if len(self.train_batch)>0:
             self.add_batch()
-        self.info["train"].append(self.train_temp)
+        self.info["train"].append(self.train_temp.copy())
         self.train_temp.clear()
     
     def finish_test_info(self):
-        self.info["test"].append(self.test_temp)
+        self.info["test"].append(self.test_temp.copy())
         self.test_temp.clear()
 
     def add_result_particle(self,energy:int,r:float,std:float,info_type:str):
         if info_type in ["gamma","proton","q"]:
             self.info["result"][info_type]["energy"].append(energy)
             self.info["result"][info_type]["r"].append(r)
+            if math.isnan(std) or math.isinf(std):
+                std=0
             self.info["result"][info_type]["std"].append(std)
         else:
             raise Exception("invalid info type")
@@ -109,6 +111,8 @@ class DataInfo(object):
         if info_type in ["gamma","proton"]:
             self.info["result"][info_type]["energy"].append(energy)
             self.info["result"][info_type]["loss"].append(loss)
+            if math.isnan(std) or math.isinf(std):
+                std=0
             self.info["result"][info_type]["std"].append(std)
         else:
             raise Exception("invalid info type")
@@ -120,6 +124,9 @@ class DataInfo(object):
             self.info["result"][info_type]["loss_0"].append(loss[1])
             self.info["result"][info_type]["loss_1"].append(loss[2])
             self.info["result"][info_type]["angle"].append(loss[3])
+            for std_num in range(4):
+                if math.isnan(std[std_num]) or math.isinf(std[std_num]):
+                    std[std_num]=0
             self.info["result"][info_type]["std"].append(std[0])
             self.info["result"][info_type]["std_0"].append(std[1])
             self.info["result"][info_type]["std_1"].append(std[2])
@@ -131,8 +138,12 @@ class DataInfo(object):
         if info_type in ["gamma","proton"]:
             self.info["result"][info_type]["energy"].append(energy)
             self.info["result"][info_type]["loss"].append(loss)
+            if math.isnan(std) or math.isinf(std):
+                std=0
             self.info["result"][info_type]["std"].append(std)
             self.info["result"][info_type]["angle"].append(angle)
+            if math.isnan(std_angle) or math.isinf(std_angle):
+                std_angle=0
             self.info["result"][info_type]["std_angle"].append(std_angle)
         else:
             raise Exception("invalid info type")

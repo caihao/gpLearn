@@ -137,7 +137,11 @@ def generate_info_picture(data_file_path_relative:str,epoch_step:int=10,train_ty
         plt.show()
 
 def energy_distribution(particle:str,energy:int,model_file:str,total_number:int,allow_pic_number_list:list=[4,3,2,1],allow_min_pix_number:int=None,ignore_number:int=0,centering:bool=True,ran:int=500,epo:int=5):
-    data,_=load_data(particle,energy,total_number,allow_pic_number_list,allow_min_pix_number,ignore_number,64,"energy",centering,None,None)
+    with open("settings.json","r") as f:
+        settings=json.load(f)
+        f.close()
+    
+    data,label,_,_,_=load_data(particle,energy,total_number,allow_pic_number_list,allow_min_pix_number,ignore_number,64,"energy",centering,True,energy/1000,torch.float32,settings=settings)
     device=torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     state=torch.load(get_project_file_path("data/model/"+model_file))
     model=state['model'].to(device)
@@ -167,7 +171,7 @@ def energy_distribution(particle:str,energy:int,model_file:str,total_number:int,
     plt.xlim(energy-ran-100 if (energy-ran-100)>=0 else 0,energy+ran+100)
     plt.ylim(0,max(y))
     plt.show()
-    return x,y
+    return x,y,points
 
 def energy_error(particle:str,energy:int,model_file:str,total_number:int,allow_pic_number_list:list=[4],allow_min_pix_number:int=None,ignore_number:int=0,centering:bool=True):
     data,_=load_data(particle,energy,total_number,allow_pic_number_list,allow_min_pix_number,ignore_number,64,"energy",centering,None,None)

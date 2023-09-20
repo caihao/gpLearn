@@ -24,7 +24,7 @@ class Residual(nn.Module):
         Y=Y+X
         return F.relu(Y)
 
-class ResNet_custom(nn.Module):
+class ParticleNet(nn.Module):
     def __init__(self,input_channels,input_size_x,input_size_y,output_size):
         super().__init__()
         self.classifer=nn.Sequential(

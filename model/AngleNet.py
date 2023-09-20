@@ -76,7 +76,7 @@ class ResAngleNet(nn.Module):
             nn.AdaptiveAvgPool3d((4,4,4)),
             nn.Flatten()
         )
-        x = torch.rand((1, input_channel, input_size_x, input_size_y, 4))
+        x = torch.rand((1, input_channel, input_size_x, input_size_y, 3))
         linear_size = self.features(x).size(-1)
         self.classifier = nn.Sequential(
             nn.Dropout(0.4),

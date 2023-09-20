@@ -3,11 +3,16 @@ import torch.nn as nn
 import math
 import time
 import numpy as np
+import json
 
 from utils.std import std_q
 from utils.log import Log
 from utils.leftTime import LeftTime
 from utils.dataInfo import DataInfo
+
+# define temp g/p particle defination
+# particle_gamma_list=[]
+# particle_proton_list=[]
 
 def softmax(X):
     X_exp=torch.exp(X)
@@ -78,6 +83,9 @@ def test(test_data_list:list,test_label_list:list,test_type_list:list,test_energ
         elif train_type=="angle":
             result_angle_list=[]
 
+        # ss=[]
+        # sso=[]
+
         if train_type=="particle":
             for j in range(len(test_data_list[i])):
                 y_hat=softmax(model(test_data_list[i][j:j+batchSize].to(device)))
@@ -85,6 +93,12 @@ def test(test_data_list:list,test_label_list:list,test_type_list:list,test_energ
                 s=(m==test_label_list[i][j:j+batchSize].to(device)).int()
                 # item_eff=item_eff+s.sum().item()
                 # item_total=item_total+len(y_hat)
+
+                # if test_label_list[i][j:j+batchSize].item()==0:#g
+                #     particle_gamma_list.append(y_hat[0][1].item())
+                # elif test_label_list[i][j:j+batchSize].item()==1:#p
+                #     particle_proton_list.append(y_hat[0][1].item())
+
                 result_list.append(s.sum().item()/len(y_hat))
         elif train_type=="energy":
             for j in range(len(test_data_list[i][0])):
@@ -110,13 +124,25 @@ def test(test_data_list:list,test_label_list:list,test_type_list:list,test_energ
                     result_1_list.append(loss_function(y_hat_1,current_label_1).sum().item()/len(y_hat))
         elif train_type=="angle":
             for j in range(len(test_data_list[i])):
-                # y_hat=Norm(model(test_data_list[i][j:j+batchSize].to(device)))
                 y_hat=Norm(model(test_data_list[i][j:j+batchSize].to(device)))
+                # y_hat=model(test_data_list[i][j:j+batchSize].to(device))
                 result_list.append(loss_function(y_hat,test_label_list[i][j:j+batchSize].to(device)).sum().item()/len(y_hat))
                 priUnvt=test_label_list[i][j:j+batchSize].tolist()[0]
                 recUnvt=y_hat.tolist()[0]
-                result_angle_list.append(angle(priUnvt,recUnvt))
+                ea=angle(priUnvt,recUnvt)
+                # ea=abs(priUnvt[0]-recUnvt[0])
+                result_angle_list.append(ea)
+                
+            #     if ea<5:
+            #         ss.append(ea)
+            #         sso.append(test_label_list[i][j:j+batchSize][0][2].item())
+            # ss.sort()
+            # sso.sort()
+            # print(ss)
+            # print(sso)
 
+            # print(ss[int(len(ss)*0.68)])
+            # print(sso[int(len(sso)*0.68)])
 
         if test_type_list[i]==0:
             # gamma_eff=gamma_eff+item_eff
@@ -286,7 +312,6 @@ def test(test_data_list:list,test_label_list:list,test_type_list:list,test_energ
         union=list(gamma_set.union(proton_set))
         union.sort()
         intersection=list(gamma_set.intersection(proton_set))
-        print(union)
 
         for en in union:
             if en in intersection:
@@ -300,7 +325,6 @@ def test(test_data_list:list,test_label_list:list,test_type_list:list,test_energ
                     log.write("calculation at energy "+str(en)+" gets Q: "+str(q)+" (with acc_gamma: "+str(a_g)+" and acc_proton: "+str(a_p)+")")
                 print("calculation at energy "+str(en)+" gets Q: "+str(q)+" (with acc_gamma: "+str(a_g)+" and acc_proton: "+str(a_p)+")")
             else:
-                print(en,intersection)
                 if en in list(gamma_set):
                     # 仅存在光子数据点
                     if log!=None:
@@ -321,10 +345,14 @@ def test(test_data_list:list,test_label_list:list,test_type_list:list,test_energ
                 q_info_keys.sort()
                 for k in q_info_keys:
                     data_info.add_result_particle(k,q_info[str(k)]["q"],q_info[str(k)]["std"],"q")
-    
+
     if not final_test and leftTime!=None:
         leftTime.endEpochTesting()
-        
+    
+    # with open("temp_particle_gp.json","w") as f:
+    #     json.dump({"gamma":particle_gamma_list,"proton":particle_proton_list},f)
+    #     f.close()
+
     if train_type=="position":
         return gamma_eff,gamma_loss_0,gamma_loss_1,gamma_total,proton_eff,proton_loss_0,proton_loss_1,proton_total
     else:

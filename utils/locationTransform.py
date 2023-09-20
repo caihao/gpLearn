@@ -65,9 +65,9 @@ def coordinate_transform_angle(coordinate_dict_origin:dict,reverse_range:int,wei
             coordinate_dict[str(i+1)].append([int(item[0]/50),int(item[1]/50),item[2],item[3]])
             # coordinate_dict[str(i+1)].append([int(item[0]/10),int(item[1]/10),item[2],item[3]])
     
-    new_coordinate_torch=torch.zeros((4,64,64,4),dtype=torch.float32)
-    for i in range(4):
-        d=coordinate_dict[str(i+1)]
+    new_coordinate_torch=torch.zeros((4,64,64,3),dtype=torch.float32)
+    for ii in range(4):
+        d=coordinate_dict[str(ii+1)]
         if weighted_average:
             if use_out1_weight:
                 x=0
@@ -108,26 +108,27 @@ def coordinate_transform_angle(coordinate_dict_origin:dict,reverse_range:int,wei
         y_min=int(y-reverse_range/2)
         y_max=y_min+reverse_range
 
-        if i==0:
+        if ii==0:
             x_bias=50
             y_bias=-50
-        elif i==1:
+        elif ii==1:
             x_bias=-50
             y_bias=-50
-        elif i==2:
+        elif ii==2:
             x_bias=50
             y_bias=50
-        elif i==3:
+        elif ii==3:
             x_bias=-50
             y_bias=50
         for m in range(reverse_range):
             for n in range(reverse_range):
-                new_coordinate_torch[i][m][n][0]=(x_min+m)/100+x_bias
-                new_coordinate_torch[i][m][n][1]=(y_min+n)/100+y_bias
+                new_coordinate_torch[ii][m][n][0]=(x_min+m)/100+x_bias
+                new_coordinate_torch[ii][m][n][1]=(y_min+n)/100+y_bias
 
         for item in d:
             if x_min<=item[0]<x_max and y_min<=item[1]<y_max:
-                new_coordinate_torch[i][item[0]-x_min][item[1]-y_min][2]=new_coordinate_torch[i][item[0]-x_min][item[1]-y_min][2]+item[2]
-                new_coordinate_torch[i][item[0]-x_min][item[1]-y_min][3]=new_coordinate_torch[i][item[0]-x_min][item[1]-y_min][3]+item[3]
+                # new_coordinate_torch[ii][item[0]-x_min][item[1]-y_min][2]=new_coordinate_torch[ii][item[0]-x_min][item[1]-y_min][2]+item[2]
+                # new_coordinate_torch[ii][item[0]-x_min][item[1]-y_min][3]=new_coordinate_torch[ii][item[0]-x_min][item[1]-y_min][3]+item[3]
+                new_coordinate_torch[ii][item[0]-x_min][item[1]-y_min][2]=new_coordinate_torch[ii][item[0]-x_min][item[1]-y_min][2]+item[3]
 
     return new_coordinate_torch

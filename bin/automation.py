@@ -47,12 +47,13 @@ class Au(object):
             centering:bool=True,
             use_weight:bool=False,
             train_type:str="particle",
+            log_name:str=None,
             need_data_info:bool=False,
-            use_loading_process:int=None,
             current_file_name:str="main.py"
     ):
-        current_version="stable-1.1.2"
-        log=Log(current_file_name,current_version)
+        current_version="stable-1.1.3"
+        log=Log(log_name,current_file_name,current_version)
+        log_file_name=log.get_log_file_name()
         self.timeStamp=log.timeStamp
         with open(get_project_file_path("settings.json"),"r") as f:
             self.settings=json.load(f)
@@ -75,6 +76,7 @@ class Au(object):
         log.info("centering",centering)
         log.info("use_weight",use_weight)
         log.info("train_type",train_type)
+        log.info("log_file_name",log_file_name)
         log.info("need_data_info",need_data_info)
         if need_data_info:
             self.data_info=DataInfo(self.timeStamp,train_type)
@@ -112,14 +114,14 @@ class Au(object):
             if need_data_info:
                 self.data_info.set_info("MULTIPLE GPU INDEX",self.settings["GPU"]["multipleGPUIndex"])
 
-        if use_loading_process==None:
-            log.info("use_loading_process","No_Multi_Process")
-            if need_data_info:
-                self.data_info.set_info("use_loading_process","No_Multi_Process")
-        else:
-            log.info("use_loading_process",use_loading_process)
-            if need_data_info:
-                self.data_info.set_info("use_loading_process",use_loading_process)
+        # if use_loading_process==None:
+        #     log.info("use_loading_process","No_Multi_Process")
+        #     if need_data_info:
+        #         self.data_info.set_info("use_loading_process","No_Multi_Process")
+        # else:
+        #     log.info("use_loading_process",use_loading_process)
+        #     if need_data_info:
+        #         self.data_info.set_info("use_loading_process",use_loading_process)
 
         self.lt=LeftTime()
         self.lt.startLoading(len(gamma_energy_list)*particle_number_gamma+len(proton_energy_list)*particle_number_proton)
@@ -135,13 +137,13 @@ class Au(object):
         
         for i in gamma_energy_list:
             if train_type=="particle":
-                data,label,final_length,min_pix=load_data("gamma" if use_data_type==None else "gamma_"+use_data_type,i,particle_number_gamma,allow_pic_number_list,limit_min_pix_number,ignore_head_number,pic_size,train_type,centering,use_weight,0,torch.int64,self.settings,log)
+                data,label,final_length,min_pix,min_value=load_data("gamma" if use_data_type==None else "gamma_"+use_data_type,i,particle_number_gamma,allow_pic_number_list,limit_min_pix_number,ignore_head_number,pic_size,train_type,centering,use_weight,0,torch.int64,self.settings,log)
             elif train_type=="energy":
-                data,label,final_length,min_pix=load_data("gamma" if use_data_type==None else "gamma_"+use_data_type,i,particle_number_gamma,allow_pic_number_list,limit_min_pix_number,ignore_head_number,pic_size,train_type,centering,use_weight,i/100,torch.float32,self.settings,log)
+                data,label,final_length,min_pix,min_value=load_data("gamma" if use_data_type==None else "gamma_"+use_data_type,i,particle_number_gamma,allow_pic_number_list,limit_min_pix_number,ignore_head_number,pic_size,train_type,centering,use_weight,i/100,torch.float32,self.settings,log)
             elif train_type=="position":
-                data,label,final_length,min_pix=load_data("gamma" if use_data_type==None else "gamma_"+use_data_type,i,particle_number_gamma,allow_pic_number_list,limit_min_pix_number,ignore_head_number,pic_size,train_type,centering,use_weight,None,None,self.settings,log)
+                data,label,final_length,min_pix,min_value=load_data("gamma" if use_data_type==None else "gamma_"+use_data_type,i,particle_number_gamma,allow_pic_number_list,limit_min_pix_number,ignore_head_number,pic_size,train_type,centering,use_weight,None,None,self.settings,log)
             elif train_type=="angle":
-                data,label,final_length,min_pix=load_data("gamma" if use_data_type==None else "gamma_"+use_data_type,i,particle_number_gamma,allow_pic_number_list,limit_min_pix_number,ignore_head_number,pic_size,train_type,centering,use_weight,None,None,self.settings,log)
+                data,label,final_length,min_pix,min_value=load_data("gamma" if use_data_type==None else "gamma_"+use_data_type,i,particle_number_gamma,allow_pic_number_list,limit_min_pix_number,ignore_head_number,pic_size,train_type,centering,use_weight,None,None,self.settings,log)
             else:
                 raise Exception("invalid train type")
 
@@ -192,21 +194,21 @@ class Au(object):
 
             hms,da,completion=self.lt.loadLeftTime(final_length,particle_number_gamma)
             particle="gamma" if use_data_type==None else "gamma_"+use_data_type
-            print(particle+" "+str(i)+" loading finish with length: "+str(final_length)+" (pre set: "+str(particle_number_gamma)+"), with pixel limit: "+str(min_pix))
+            print(particle+" "+str(i)+" loading finish with length: "+str(final_length)+" (pre set: "+str(particle_number_gamma)+"), with pixel limit: "+str(min_pix)+", and value limit: "+str(min_value))
             print("Loading ("+completion+"%): estimated remaining time: "+hms+", estimated completion time: "+da)
-            log.write(particle+" "+str(i)+" loading finish with length: "+str(final_length)+" (pre set: "+str(particle_number_gamma)+"), with pixel limit: "+str(min_pix))
+            log.write(particle+" "+str(i)+" loading finish with length: "+str(final_length)+" (pre set: "+str(particle_number_gamma)+"), with pixel limit: "+str(min_pix)+", and value limit: "+str(min_value))
             log.write("Loading ("+completion+"%): estimated remaining time: "+hms+", estimated completion time: "+da)
 
 
         for i in proton_energy_list:
             if train_type=="particle":
-                data,label,final_length,min_pix=load_data("proton" if use_data_type==None else "proton_"+use_data_type,i,particle_number_proton,allow_pic_number_list,limit_min_pix_number,ignore_head_number,pic_size,train_type,centering,use_weight,1,torch.int64,self.settings,log)
+                data,label,final_length,min_pix,min_value=load_data("proton" if use_data_type==None else "proton_"+use_data_type,i,particle_number_proton,allow_pic_number_list,limit_min_pix_number,ignore_head_number,pic_size,train_type,centering,use_weight,1,torch.int64,self.settings,log)
             elif train_type=="energy":
-                data,label,final_length,min_pix=load_data("proton" if use_data_type==None else "proton_"+use_data_type,i,particle_number_proton,allow_pic_number_list,limit_min_pix_number,ignore_head_number,pic_size,train_type,centering,use_weight,i/100,torch.float32,self.settings,log)
+                data,label,final_length,min_pix,min_value=load_data("proton" if use_data_type==None else "proton_"+use_data_type,i,particle_number_proton,allow_pic_number_list,limit_min_pix_number,ignore_head_number,pic_size,train_type,centering,use_weight,i/100,torch.float32,self.settings,log)
             elif train_type=="position":
-                data,label,final_length,min_pix=load_data("proton" if use_data_type==None else "proton_"+use_data_type,i,particle_number_proton,allow_pic_number_list,limit_min_pix_number,ignore_head_number,pic_size,train_type,centering,use_weight,None,None,self.settings,log)
+                data,label,final_length,min_pix,min_value=load_data("proton" if use_data_type==None else "proton_"+use_data_type,i,particle_number_proton,allow_pic_number_list,limit_min_pix_number,ignore_head_number,pic_size,train_type,centering,use_weight,None,None,self.settings,log)
             elif train_type=="angle":
-                data,label,final_length,min_pix=load_data("proton" if use_data_type==None else "proton_"+use_data_type,i,particle_number_proton,allow_pic_number_list,limit_min_pix_number,ignore_head_number,pic_size,train_type,centering,use_weight,None,None,self.settings,log)
+                data,label,final_length,min_pix,min_value=load_data("proton" if use_data_type==None else "proton_"+use_data_type,i,particle_number_proton,allow_pic_number_list,limit_min_pix_number,ignore_head_number,pic_size,train_type,centering,use_weight,None,None,self.settings,log)
             
             if train_data==None:
                 if train_type=="particle":
@@ -255,9 +257,9 @@ class Au(object):
 
             hms,da,completion=self.lt.loadLeftTime(final_length,particle_number_proton)
             particle="proton" if use_data_type==None else "proton_"+use_data_type
-            print(particle+" "+str(i)+" loading finish with length: "+str(final_length)+" (pre set: "+str(particle_number_proton)+"), with pixel limit: "+str(min_pix))
+            print(particle+" "+str(i)+" loading finish with length: "+str(final_length)+" (pre set: "+str(particle_number_proton)+"), with pixel limit: "+str(min_pix)+", and value limit: "+str(min_value))
             print("Loading ("+completion+"%): estimated remaining time: "+hms+", estimated completion time: "+da)
-            log.write(particle+" "+str(i)+" loading finish with length: "+str(final_length)+" (pre set: "+str(particle_number_proton)+"), with pixel limit: "+str(min_pix))
+            log.write(particle+" "+str(i)+" loading finish with length: "+str(final_length)+" (pre set: "+str(particle_number_proton)+"), with pixel limit: "+str(min_pix)+", and value limit: "+str(min_value))
             log.write("Loading ("+completion+"%): estimated remaining time: "+hms+", estimated completion time: "+da)
 
         # 构建训练集DataLoader
@@ -272,7 +274,22 @@ class Au(object):
         log.write("data loading finish")
         self.log=log
 
-    def load_model(self,modelName:str,model_type:str,modelInit:bool=False):
+    def load_model(self,modelName:str,model_type:str=None,modelInit:bool=False):
+        # 根据训练类型使用默认的模型类别
+        if model_type==None:
+            if self.train_type=="particle":
+                model_type="ParticleNet"
+            elif self.train_type=="energy":
+                model_type="EnergyNet"
+            elif self.train_type=="position":
+                model_type="PointNet"
+            elif self.train_type=="angle":
+                model_type="AngleNet"
+
+        modelName=model_type+"_"+modelName
+        if modelName[-3:]!=".pt":
+            modelName=modelName+".pt"
+        
         self.log.method("Au.load_model")
         self.log.info("modelName",modelName)
         self.log.info("model_type",model_type)
@@ -363,6 +380,7 @@ class Au(object):
             print("model l:"+str(self.l))
             self.log.write("model l:"+str(self.l))
             self.loss_function=nn.MSELoss(reduction="sum")
+            # self.loss_function=nn.L1Loss(reduction="sum")
             self.log.info("loss_function","nn.MSELoss(reduction=sum)")
         self.log.write("model loading finish")
         self.set_optimizer()

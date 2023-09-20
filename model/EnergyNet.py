@@ -47,7 +47,7 @@ class Joint(nn.Module):
         return self.classifer(hidden)
 
 
-class GoogLeNet(nn.Module):
+class EnergyNet(nn.Module):
     def __init__(self,input_size_x:int,input_size_y:int,input_size_info:int,output_size:int):
         super().__init__()
         self.features=nn.Sequential(

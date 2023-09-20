@@ -64,10 +64,10 @@ def load_data(particle:str,energy:int,total_number:int,allow_pic_number_list:lis
     if data_file_name:
         with open(data_file_name,"rb") as f:
             pcl=pickle.load(f)
-            f.close()  
+            f.close()
         if train_type=="energy":
             data_tensor=[torch.tensor(pcl["data"][0][:total_number],dtype=torch.float32),torch.tensor(pcl["data"][1][:total_number],dtype=torch.float32)]
-            data_tensor=torch.tensor(pcl["label"][:total_number],dtype=torch.float32)
+            label_tensor=torch.tensor(pcl["label"][:total_number],dtype=torch.float32)
         elif train_type=="particle":
             data_tensor=torch.tensor(pcl["data"][:total_number],dtype=torch.float32)
             label_tensor=torch.tensor(pcl["label"][:total_number],dtype=torch.int64)
@@ -79,7 +79,7 @@ def load_data(particle:str,energy:int,total_number:int,allow_pic_number_list:lis
         if log:
             log.write(particle+"_"+str(energy)+" was loaded from the cache file: "+data_file_name)
         
-        return data_tensor,label_tensor,total_number,min_pix
+        return data_tensor,label_tensor,total_number,min_pix,min_value
 
     elif old_file_name:
         with open(old_file_name,"rb") as f:
@@ -149,13 +149,26 @@ def load_data(particle:str,energy:int,total_number:int,allow_pic_number_list:lis
                 ],dtype=torch.float32)
                 fin_energy=torch.unsqueeze(fin_energy,dim=0)
             
+            # 排除低于最低像素阈值的点
             if min_value!=0:
                 new_pic_item={"index":pic_item["index"],"1":[],"2":[],"3":[],"4":[],"info":pic_item["info"]}
                 for a in range(4):
                     for b in pic_item[str(a+1)]:
-                        if b[3]>=min_value:
-                            new_pic_item[str(a+1)].append(b)
+                        if len(b)==4:
+                            if b[3]>=min_value:
+                                new_pic_item[str(a+1)].append(b)
+                        elif len(b)==3:
+                            if b[2]>=min_value:
+                                new_pic_item[str(a+1)].append(b)
                 pic_item=new_pic_item
+            # 判断是否有空坐标集
+            actual_pic=0
+            for pic_i in range(4):
+                if len(pic_item[str(pic_i+1)])>0:
+                    actual_pic=actual_pic+1
+            if actual_pic!=pic:
+                continue
+            # 判断最低像素点数是否符合要求
             if min_pix!=0:
                 pic_number=len(pic_item["1"])+len(pic_item["2"])+len(pic_item["3"])+len(pic_item["4"])
                 if pic_number<min_pix:
@@ -201,11 +214,13 @@ def load_data(particle:str,energy:int,total_number:int,allow_pic_number_list:lis
                     # pic_item["info"]["angle_center_x"]/1000,pic_item["info"]["angle_center_y"]/1000
                 ],dtype=torch.float32)
             elif train_type=="angle":
-                fin=temp_tensor.reshape(1,4,pic_size,pic_size,4)
+                fin=temp_tensor.reshape(1,4,pic_size,pic_size,3)
                 
                 # fin=torch.cat((torch.cat((temp_tensor[0],temp_tensor[1]),dim=1),torch.cat((temp_tensor[2],temp_tensor[3]),dim=1)),dim=0)
                 fin_label=torch.tensor([
                     math.cos(pic_item["info"]["priPhi"]*math.pi/180),math.sin(pic_item["info"]["priPhi"]*math.pi/180)
+                    # math.cos(pic_item["info"]["priPhi"]*math.pi/180),math.sin(pic_item["info"]["priPhi"]*math.pi/180),pic_item["info"]["angle"]
+                    # pic_item["info"]["priPhi"]*math.pi/180
                     ],dtype=torch.float32)
                 
             else:
@@ -240,7 +255,7 @@ def load_data(particle:str,energy:int,total_number:int,allow_pic_number_list:lis
                     label_tensor=torch.cat((label_tensor,fin_label.reshape(1,2)))
                 elif train_type=="angle":
                     data_tensor=torch.cat((data_tensor,fin))
-                    
+
                     # data_tensor=torch.cat((data_tensor,fin.reshape(1,4,128,128)))
                     label_tensor=torch.cat((label_tensor,fin_label.reshape(1,2)))
             
@@ -290,7 +305,7 @@ def load_data(particle:str,energy:int,total_number:int,allow_pic_number_list:lis
                 if log:
                     log.write("File cache update fail (reason: all origin data cached)")
 
-    return data_tensor,label_tensor,current_number,min_pix
+    return data_tensor,label_tensor,current_number,min_pix,min_value
 
 def load_label(label,length:int,dtype):
     label_list=[label for _ in range(length)]

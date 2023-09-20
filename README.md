@@ -1,34 +1,49 @@
 # GPLearn
 
-## 介绍
-GPLearn是我们针对切伦科夫望远镜所独立编写的程序包，基于python语言和pytorch模型，我们将不同的功能单独打包成相对应的模块，并允许用户根据需求自定义模块参数。
-通过GPLearn进行的一系列数据模拟与分析的相关结果详见，读者不仅可以利用我们提供的数据还原文章中展示的结果，同时也可以用于实际探测器的数据分析，我们希望这一结果可以被广泛用于天文物理领域。<br><br>
+## Available Languages
+* [English](README.md)
+* [中文](README_zh.md)
 
-## 更新日志
-1. stable-1.1.2 (最新版本，更新于2023.08.21 10:28:00 UTC+8)
-+ 增加了数据加载过程中对像素强度的判断
-+ 旧版本保存的数据缓存文件将不再兼容！
-2. stable-1.1.1(a) (更新于2023.08.08 16:42:00 UTC+8)
-+ **此版本为重要修复补丁！**
-+ 修复了使用 nn.DataParallel 后无法加载保存模型的bug
-+ 更新了模型的存储策略，此版本后运算结果的保存仅会保存模型参数和最终结果，而不会保存模型本身的结果，**旧版本保存的模型结果将不兼容！**
-3. stable-1.1.1 (最新版本，更新于2023.08.08)
-+ 完善了数据集缓存功能，同时加入缓存更新功能，使得在加载相同类型的数据集时获得更快的响应速度
-+ 调整了角度训练的模型结构，相比之前有了更好的效果
-4. stable-1.1.0 (更新于2023.07.28)
-+ 增加了训练结果中的各项标准差，并允许在结果绘图中加入误差显示
-+ 增加了角度回归预测的功能，现在可以直接通过直接定义 **train_type** 为 **angle** 开展相关训练；此外，角度训练采用的数据集更为繁重、模型更为复杂；请注意，当前版本使用的数据集和模型尚处于测试阶段，得到的结果不代表最终品质
-+ 新增了数据集缓存功能，大幅缩短重复训练时数据加载所消耗的时间，您可以在 **settings.json** 文件中更改相应设置 **tempData**
-5. stable-1.0.2 (更新于2023.07.18)
-+ 修复了读取 **settings.json** 文件无法同步的相关问题
-6. stable-1.0.1 (更新于2023.07.17)
-+ 修复了日志版本信息显示异常的相关问题
-7. stable-1.0.0 (更新于2023.07.16)
-+ 正式版本现在可以使用
+## Description
+GPLearn is a package written independently for the Cherenkov telescope, based on the python language and the pytorch model, we packaged the different functions into separate modules, and allowed the user to customize the module parameters according to the needs.
+The results of a series of data simulations and analyses performed with GPLearn are shown in detail, so that the reader can not only use the data provided by us to reproduce the results shown in the article, but also to analyze the data of the actual detector, and we hope that the results can be widely used in the field of astrophysics.<br><br>
+
+## Update Log
+1. stable-1.1.3 (Latest version, updated on 2023.09.20 15:38:00 UTC+8)
++ Added the feature to use custom filenames for log files. Users can customize it according to the current program, preventing the confusion that could arise from using timestamps as filenames.
++ Unified the names of standard models; users do not need to set anything extra to use the default model suitable for the current task type.
++ Fixed a related bug in the standard deviation calculation program.
+  
+2. stable-1.1.2 (Updated on 2023.08.21 10:28:00 UTC+8)
++ Added judgment for pixel intensity during the data loading process.
++ Updated the format of training cache data, **old version saved cache files are no longer compatible!**
+  
+3. stable-1.1.1(a) (Updated on 2023.08.08 16:42:00 UTC+8)
++ **This version is an important bug-fix patch!**
++ Fixed a bug that made it impossible to load saved models after using nn.DataParallel.
++ Updated the model storage strategy. Only the model parameters and final results will be saved from this version onward, not the model's own results. **Old versions' saved model results are no longer compatible!**
+
+4. stable-1.1.1 (Latest version, updated on 2023.08.08)
++ Improved the dataset caching feature and added a cache update function, providing faster response times when loading datasets of the same type.
++ Adjusted the model structure for angle training, achieving better results compared to before.
+
+5. stable-1.1.0 (Updated on 2023.07.28)
++ Added standard deviations to training results and allowed the inclusion of error displays in result plots.
++ Added the function of angle regression prediction. You can now directly start related training by defining **train_type** as **angle**. Additionally, the datasets and models used for angle training are more complex. Please note that the datasets and models in the current version are still in the testing phase, and the results obtained do not represent final quality.
++ Introduced a dataset caching feature, significantly reducing the time consumed in data loading for repetitive training. You can change the related settings in the **settings.json** file under **tempData**.
+
+6. stable-1.0.2 (Updated on 2023.07.18)
++ Fixed an issue where reading the **settings.json** file could not sync.
+
+7. stable-1.0.1 (Updated on 2023.07.17)
++ Fixed a related issue where log version information was not displayed correctly.
+
+8. stable-1.0.0 (Updated on 2023.07.16)
++ The official version is now available for use.
 <br><br>
 
-## 软件架构
-为了您可以正常使用GPLearn，请确保您在当前环境下安装了以下依赖：
+## Software Architecture
+In order for you to use GPLearn properly, make sure you have the following dependencies installed in your current environment:
 1. python  ^3.8.5<br>
 2. pytorch  ^1.7.0<br>
 3. torchvision  ^0.8.0<br>
@@ -36,110 +51,144 @@ GPLearn是我们针对切伦科夫望远镜所独立编写的程序包，基于p
 5. numpy  ^1.22.2<br>
 6. pandas  ^1.2.4<br><br>
 
-## 安装教程
-1. 在您指定的位置上运行如下克隆命令：<br><center>**git clone https://gitee.com/chengaoyan/gplearn.git**</center>
-2. 如果您是首次下载使用，请首先运行位于程序住目录下的 **init.py** 文件，该脚本会检查程序主路径下的 **/data** 目录及其子目录是否完整（如不完整则会创建补全）
-3. 位于程序主目录下的 **main.py** 文件是作业脚本，您可以根据您的不同需求在其中设定程序的执行流程，一些参数的调整可能需要您改动 **settings.json** 文件，具体方法将在以下部分详细阐述。此外，**main_quick_start.py** 提供了适用于背景抑制工作的简单演示程序，您可以直接运行
-4. 我们更推荐您使用 **nohup** 命令在超算服务器上托管运行，为此，我们编写了适配的日志功能与剩余时间预测功能，您的所有输出结果（包括所有中间结果）都将被自动保存
+## Installation
+1. Run the following clone command at the location you specified:<br><center>**git clone https://gitee.com/chengaoyan/gplearn.git**</center>
+2. If you are downloading the program for the first time, first run the **init.py** file located in the program's home directory. This script checks to see if the **/data** directory and its subdirectories in the program's home directory are complete (and creates a patch if they are not).
+3. The **main.py** file located in the main directory of the program is a job script where you can set up the execution flow of the program according to your different needs, and you may need to change the **settings.json** file for some parameter adjustments, which will be explained in the following sections. In addition, **main_quick_start.py** provides a simple demo program for background suppression, which you can run directly.
+4. We recommend that you use the **nohup** command to host your run on the supercomputing server, for which we have written an adapted logging function and remaining time prediction function, and all your outputs (including all intermediate results) will be automatically saved!
 <br><br>
 
-## 使用说明
-### 准备工作
-为了可以正确运行GPLearn，请确保您的计算机上安装了python以及对应版本的依赖。如果您是首次使用，请首先运行程序包根目录下的init.py脚本，这将会自动检查您的程序目录完整性并自动补齐缺失的文件。<center> **python init.py** </center>
+## Instructions
+### Preparations
+In order to run GPLearn correctly, please make sure that you have python and its dependencies installed on your computer. If you are a first-time user, first run the init.py script in the package root directory, which will automatically check the integrity of your program directory and automatically fill in the missing files. <center> **python init.py** </center>
 
-**/data/origin** 包含着不同能量下光子与质子的探测器数据。考虑到程序包整体的大小以及程序的完整性，我们在正式版本中附带了部分demo数据，这将使您的程序可以正常运行。此外您可以参考我们的数据格式，将您数据作相应修改并用于GPLearn。
+**/data/origin** contains detector data for photons and protons at different energies. Considering the overall size of the package and the integrity of the program, we have included some of the demo data in the official version, which will make your program work. In addition, you can refer to our data format, modify your data accordingly and use it for GPLearn.
 <br>
-我们推荐的程序主入口是位于GPLearn根目录的 **main.py** 文件，您可以根据需求自定义工作流程。此外，我们提供了一个快如上手脚本，您可以直接运行 **main_quick_start.py** ，并在其基础上作出相应修改。
+Our recommended main entry point for the program is the **main.py** file located in the GPLearn root directory, which allows you to customize the workflow according to your needs. In addition, we provide a quick start script that you can run **main_quick_start.py** and make changes based on it.
 <br><br>
 
-### 主流工作
-为了方便起见，我们将所有的数据加载、创建模型、训练及测试流程统一集成于 **automation** 中，您只需要在程序主入口 **main.py** 将其引入<br><center>**from bin.automation import Au**</center>
+### Mainstreaming
+For convenience, we have integrated all data loading, model creation, training and testing processes into **automation**, which you only need to bring in at the main entry point of the program, **main.py**<br><center>**from bin.automation import Au**</center>
 
-在 **Au** 类的初始化中，您需要指定以下内容：
-<!-- <center> -->
+In the initialization of the **Au** class, you need to specify the following:
 
-| 参数 | 类型 | 默认值 | 说明 |
+| Parameters | Types | Defaults | Descriptions |
 | --- | --- | --- | --- |
-| gamma_energy_list | list | - | 必填，表示参与训练的光子能级（请注意，您需要确保在 **/data/origin** 目录下含有相应的原始数据文件） |
-| proton_energy_list | list | - | 必填，表示参与训练的质子能级 |
-| particle_number_gamma | int | - | 必填，指定每个能量点所要加载的光子数量（请注意，您需要尽可能确保对应的原始数据文件含有足够多的事例数据，否则可能会造成最终加载数量小于设定数量的情况） |
-| particle_number_proton | int | - | 必填，指定每个能量点所要加载的光子数量 |
-| allow_pic_number_list | list | - | 必填，指定所允许的被激发探测器数量，程序将按照列表中指定的顺序从原始数据集中加载触发了特定数量探测器的事例数据，直至达到所设定的数量或者所有满足条件的数据全部被加载 |
-| limit_min_pix_number | bool | False | 是否需要限制激发像素阈值，若为True，程序会读取settings.json中相应设置 |
-| ignore_head_number | int | 0 | 设定数据集偏置，指定程序从当前位置加载，即会忽略这个索引之前的数据 |
-| interval | float | 0.8 | 设定用于训练的数据占整体数据的比例 |
-| batch_size | int | 1 | 设定单次训练样本数量（请注意，如果您在settings.json中设定了多GPU集群计算，请确保此参数设定大于等于2） |
-| use_data_type | str | None | 设定用于加载的数据类型（请注意，您需要确保在 **/data/origin** 目录下含有相应的原始数据文件） |
-| pic_size | int | 64 | 设定经过剪裁处理后的图片尺寸 |
-| centering | bool | True | 设定图像剪裁过程是否将信号区域居中显示在中心区域 |
-| use_weight | bool | False | 设定在居中过程中，信号区域中心点的坐标是否按照信号强度加权处理 |
-| train_type | str | particle | 设定模型训练任务类型，当前仅支持背景抑制工作（particle）、能量重建任务（energy）、芯位坐标还原（position）、和入射方向还原（angle） |
-| need_data_info | bool | False | 设定是否需要训练过程详细数据信息（不同于日志），若为True，程序则会记录训练过程和测试过程中的每次迭代的损失和正确率，以及最后的结果，并保存至 **/data/info** |
-| use_loading_process | int | None | 指定多进程加载数据（请注意，当前参数已被禁用，程序强制为单进程加载） |
-| current_file_name | str | main.py | 指定主函数的入口文件名，如果您需要在其他文件中执行程序，请改动为相应的文件名 |
+| gamma_energy_list | list | - | mandatory, indicates the photon energy levels involved in the training (please note that you need to make sure that the **/data/origin** directory contains the appropriate raw data files) |
+| proton_energy_list | list | - | Mandatory, indicates the proton energy levels involved in the training |
+| particle_number_gamma | int | - | mandatory, specify the number of photons to be loaded for each energy point (please note that you need to make sure that the corresponding raw data file contains enough example data as much as possible, otherwise it may result in the final number of photons loaded to be less than the set number) |
+| particle_number_proton | int | - | Mandatory, specify the number of photons to be loaded per energy point |
+| allow_pic_number_list | list | - | mandatory, specify the allowed number of excited detectors, the program will load from the raw dataset in the order specified in the list the data of the cases that have triggered a specific number of detectors until the set number is reached or until all the data that meets the condition is loaded | | limit_min_pix | int | - | mandatory, specify the number of photons to load per energy point |
+| limit_min_pix_number | bool | False | If or not need to limit the pixel excitation threshold, if True, the program will read the settings.json |
+| ignore_head_number | int | 0 | Set dataset bias, specify program load from current position, i.e., will ignore data before this index |
+| interval | float | 0.8 | Sets the percentage of data used for training |
+| batch_size | int | 1 | Sets the number of samples to be trained in a single run (note that if you set multi-GPU cluster computing in settings.json, make sure this parameter is set to greater than or equal to 2) |
+| use_data_type | str | None | Set the type of data to be used for loading (note that you need to make sure that the **/data/origin** directory contains the appropriate raw data file) |
+| pic_size | int | 64 | Sets the size of the cropped picture |
+| centering | bool | True | Sets whether the image cropping process centers the signal area in the center |
+| use_weight | bool | False | Sets whether the coordinates of the center point of the signal area are weighted according to the signal strength in the centering process |
+| train_type | str | particle | Sets the type of model training task, currently only background suppression (particle), energy reconstruction (energy), core position reduction (position), and incidence orientation reduction (angle) are supported |
+| log_name | str | None | Specify the log file filename (note that if the set filename conflicts with an existing log file name, the program may make appropriate modifications to the current set filename) |
+| need_data_info | bool | False | Sets whether to need detailed data information about the training process (different from logs), if True, the program records the loss and correctness of each iteration of the training process and the testing process, as well as the final result, and saves it to **/data/info** |
+| current_file_name | str | main.py | Specify the name of the entry file for the main function, if you need to execute the program in another file, change it to the appropriate filename | current_file_name | main.py |
 
-<!-- </center> -->
-<br>此外，**settings.json** 包含了程序运行的一些设置，这里将介绍它的用法：<br>
-1. **loading_min_pix** 模块控制了图像预处理过程中的像素激发阈值，如果在 **Au** 类的初始化中设定参数 **limit_min_pix_number** 为 **True** ，程序则会读取该参数下的相应设置，否则被忽略。
-+ 参数 **uniformThreshold** 表示是否使用统一能量阈值，若为 **true** 则会分别对光子使用设定的 **gammaUniform** 阈值，对质子使用设定的 **protonUniform** 阈值；若为 **false** 则会分别读取 **gamma** 和 **proton** 在不同能量点下的相应设定阈值（请注意，此时请确保您设定了相应的能量对应的阈值，否则程序将按照0阈值处理）。
-2. **GPU** 模块控制了深度学习所使用的计算设备，对于一般设备，程序将使用主GPU，此时不需额外设置。
-+ 对于含有多个GPU的设备，您可以通过更改 **mainGPUIndex** 参数手动设置参与运算的设备编号；此外，您也可以通过开启 **multiple** 参数使得使用多张显卡同时运算，所使用的显卡编号集合可以通过 **multipleGPUIndex** 参数设定（请注意，如果您使用多显卡并行计算，请确保在 **Au** 类的初始化中设定的 **batch_size** 参数大于等于2）。
+<br>In addition, **settings.json** contains some settings for running the program, and its usage is described here:<br>
+1. The **loading_min_pix** module controls the pixel excitation threshold during image preprocessing. If the parameter **limit_min_pix_number** is set to **True** in the initialization of the **Au** class, the program reads the corresponding setting under the parameter, otherwise it is ignored.
++ The parameter **uniformThreshold** indicates whether to use uniform energy threshold, if it is **true**, the program will use the set **gammaUniform** threshold for photons and **protonUniform** threshold for protons respectively; if it is **false**, the program will read the **gamma* * and **proton** thresholds for photons and protons respectively. **gamma* and **proton** thresholds at different energies will be read (please make sure you set the thresholds for the corresponding energies, otherwise the program will treat them as 0). 2. **GPU*** thresholds will be read for the protons, and **protonUniform** thresholds will be read for the protons.
+2. **GPU** module controls the computing device used for deep learning, for general devices, the program will use the main GPU, no additional settings are needed at this time.
++ For devices with multiple GPUs, you can manually set the number of participating devices by changing the **mainGPUIndex** parameter; in addition, you can enable the **multiple** parameter to enable the use of multiple graphics cards to compute at the same time, and the set of graphics card numbers used can be set by the **multipleGPUIndex** parameter. Please note that if you use multiple graphics cards for parallel computing, please make sure that the **batch_size** parameter is greater than or equal to 2 in the initialization of the **Au** class.
 <br><br>
-类的构造函数会进行数据加载工作，这可能需要很长的一段时间。当类 Au 被完全构建后，我们可以调用它的内置函数 **load_model** 来加载模型，我们需要指定参数：
+The constructor of the class does the data loading work, which can take a long time. When class Au is fully constructed, we can call its built-in function **load_model** to load the model, to which we need to specify parameters:
 
-| 参数 | 类型 | 默认值 | 说明 |
+| Parameters | Types | Defaults | Descriptions |
 | --- | --- | --- | --- |
-| modelName | str | - | 必填，需要调用或创建的模型完整名称（请注意，名称不需要指定路径，且模型名称需要以.pt后缀结尾） |
-| model_type | str | - | 必填，模型类别，常用模型类别：背景抑制工作ResNet_custom、能量重建任务GoogLeNet、芯位坐标还原PointNet、和入射方向还原AngleNet (请注意，若您使用自定义模型，请严格确保按照规定的流程进行) |
-| modelInit | bool | False | 指定模型是否进行初始化，如果您需要创建一个未经训练的模型参数，请将该参数设置为True （请注意，如果存在与 **modelName** 相同的文件，系统则会覆盖写入） |
+| modelName | str | - | Mandatory, the full name of the model to be called or created (note that the name does not need to specify a path) |
+| model_type | str | None | Specify the model category. By default, the program will automatically call according to the current task category: ParticleNet for background suppression tasks, EnergyNet for energy reconstruction tasks, PointNet for core position restoration, and AngleNet for incident direction restoration. (note that if you are using a custom model, make sure to strictly follow the prescribed process.) | 
+| modelInit | bool | False | Specifies whether the model is initialized, set this parameter to True if you need to create an untrained model parameter (note that the system overrides writes if there is a file that is the same as **modelName**) |
 
-此外，GPLearn支持使用自定义模型，但请严格按照如下步骤进行：<br>
-1. 请确保您的自定义模型继承了 **torch.nn.Module** 类并且具有非重复的名字
-2. 您需要在 **/model/__init__.py** 文件中添加引入来确保主函数可以正常访问
-3. 若要使您的自定义模型可以被自动化训练类 **Au** 中被正常识别，您需要在 **/bin/modelInit.py** 文件中引入您的自定义模型，并且在模型选择选择语句中添加对应分支
-4. 至此，您可以像使用预置模型那样使用您的自定义模型
+In addition, GPLearn supports the use of custom models, but please follow the steps below closely:<br>
+1. Make sure your custom model inherits the **torch.nn.Module** class and has a non-duplicate name.
+2. You need to add an introduction to the **/model/__init__.py** file to ensure that the main function is accessible.
+3. for your custom model to be recognized by the automated training class **Au**, you need to introduce your custom model in the **/bin/modelInit.py** file and add the corresponding branch to the model selector statement.
+4. At this point, you can use your custom model as if it were a pre-built model
 
-在模型加载成功后，我们可以通过类内置函数 **train_step** 开展训练工作，并且可以自主设定训练过程的相应参数：
+After the model is loaded successfully, we can carry out training through the class built-in function **train_step**, and we can set the corresponding parameters of the training process independently:
 
-| 参数 | 类型 | 默认值 | 说明 |
+| Parameters | Types | Defaults | Descriptions |
 | --- | --- | --- | --- |
-| epoch_step_list | list | - | 必填，参数将以列表的形式传递，依次表示每一阶段所需要进行重复训练的次数 |
-| lr_step_list | list | None | 可以传入一个列表来指定每一阶段的模型学习率（请注意，阶段学习率应该与阶段训练次数的长度相同，如不特别指定，则表示所有阶段按照6e-6的学习率进行） |
+| epoch_step_list | list | - | Mandatory, the parameters will be passed as a list indicating the number of repetitions needed for each stage in turn |
+| lr_step_list | list | None | A list can be passed to specify the learning rate of the model for each stage (note that the learning rate of the stage should be the same length as the number of times the stage is trained, if not specified, it means that all the stages follow a learning rate of 6e-6) |
 
 <br><br>
-当然，对于测试任务，我们仅需要加载数据后并使用当前模型对结果进行测试即可，这可以使用类内置的 **test** 函数：<br>
-该函数不需要传递任何参数，并会在执行过程中打印模型的测试结果。
+Of course, for the testing task, we just need to load the data and test the results with the current model, which can be done using the class's built-in **test** function:<br>
+This function does not need to be passed any parameters and will print the test results of the model as it executes.
 <br><br>
-最后，在我们的任务结束时，请调用类的析构函数 **finish** 来对生成的日志和数据进行保存。
+Finally, at the end of our task, call the class destructor **finish** to save the generated logs and data.
 <br><br>
-至此，我们已经编辑完成了主程序的全部内容，您可以将当前项目部署在计算平台上。由于深度学习的训练往往是很久的，因此我们推荐使用 **nohup** 命令：<center> **nohup python main.py >> /dev/null 2>&1 &** </center>
+At this point, we have edited the main program in its entirety, and you are ready to deploy your current project on a computing platform. Since deep learning training tends to be long, we recommend using the **nohup** command:<center> **nohup python main.py >> /dev/null 2>&1 &** </center>
 
-这将在您的目标服务器上后台执行计算任务。<br>
-请注意，对于一般的语法错误以及系统错误，**nohup** 命令可能会缺少相应的记录。因此，请确保您的模型可以成功运行后再进行托管。
+This performs computational tasks in the background on your target server.<br>
+Please note that for general syntax errors as well as system errors, the **nohup** command may lack the appropriate logging. Therefore, please make sure that your model can run successfully before hosting it.
 <br><br>
 
-### 辅助功能
-无论您是在调试器中运行、**nohup** 托管运行、抑或是提交计算集群运行，我们开发了独立的日志模块用辅助于 **GPLearn** 的运行：无论程序运行在哪一步，您都可以访问指定的日志文件来查看当前程序运行中的所有输出。我们的日志文件存储在 **/data/log** 目录下，日志文件以执行程序时的时间戳命名，因此，您可以十分方便的定位到当前程序的日志文件。在日志的帮助下，您可以：<br>
-1. 还原程序执行的主入口文件：日志将保存程序入口文件的全部代码，您可以轻松实现代码还原；
-2. 还原程序执行的主要设置：日志将保存程序运行中所调用的所有位于 **settings.json** 中的设置，您可以轻松实现设置还原；
-3. 查看程序运行的相关信息：日志会保存当前程序的版本号、运行进程ID、程序主入口路径等信息；
-4. 查看训练任务及进展：日志会保存数据处理、模型加载、训练和测试过程中的所有输出信息，您可以查看加载数据集长度、模型信息、训练迭代损失、测试集结果以及对应的完成时间，这将对您的判断起重要参考作用；
-5. 查看预计剩余时间：日志会根据之前的程序运行给出预计剩余时间与预计完成时间，作为您合理规划时间分配的依据。
-
-在训练完成后，如果您记录了训练过程详细数据信息（通常为与日志文件同名的 **.data** 文件，位于 **/data/info** 目录下），您可以调用GPLearn内置的的画图程序包<center> **from bin.draw import \*** </center>
-
-我们强烈建议您在Jupyter记事本中执行画图部分代码，程序最终的测试结果图可以通过 **result_genereation** 函数展示，函数仅需要传入相应的过程数据文件（ **.data** 文件）。<br>
-当然，您可以自定义输出的图片样式，具体可以通过设定 **settings.json** 文件下的 **drawing -> result** 部分；对于不同训练任务的不同结果图，您可以分别作出如下设置：
-| 关键字 | 默认值 | 说明 |
+### Program Settings
+You can make relevant settings for the program's operating parameters in **settings.json**:<br>
+The **loading_min_pix** parameter specifies the total number of triggered pixel points required by the program when loading data from four detectors. Only raw data that meets this requirement will be loaded into the dataset. The related parameters are as follows:
+| Keyword | Type | Description |
 | ---  | --- | --- |
-| title | - | 输出图表的标题，若设置了图片另存为，则会充当文件名字 |
-| xlabel | - | 横坐标坐标轴标题 |
-| ylabel | - | 纵坐标坐标轴标题 |
-| label | Deep-Learning | 图线标题 |
-| TeV_mode | false | 能量值是否以 **TeV** 为单位 |
-| logX_mode | false | 横坐标是否以对数形式标注 |
-| logY_mode | false | 纵坐标是否以对数形式标注 |
-| color | null | 图线颜色 |
-| save -> switch | false | 是否需要另存为图片 |
-| save -> head_name | null | 另存为图片名字头 |
-| save -> dpi | 400 | 另存为图片清晰度 |
+| uniformThreshold | bool | Whether to use a uniform threshold |
+| gammaUniform | int | (Ignored if **uniformThreshold** is **False**) Specifies the uniform minimum number of excited pixels when loading photon data |
+| protonUniform | int | (Ignored if **uniformThreshold** is **False**) Specifies the uniform minimum number of excited pixels when loading proton data |
+| gamma | json | (Ignored if **uniformThreshold** is **True**) Specifies the uniform minimum number of excited pixels when loading photon data, requiring specific settings for photons at different energy levels |
+| proton | json | (Ignored if **uniformThreshold** is **True**) Specifies the uniform minimum number of excited pixels when loading proton data, requiring specific settings for protons at different energy levels |
+
+The **loading_min_value** parameter specifies the requirement for the amount of charge deposited by pixel points when the program is loading data. Only pixel points that meet these criteria are processed and labeled in the input image. The related parameters are as follows:
+| Keyword | Type | Description |
+| ---  | --- | --- |
+| uniformThreshold | bool | Whether to use a uniform threshold |
+| gammaUniform | int | (Ignored if **uniformThreshold** is **False**) Specifies the uniform minimum amount of excited charge when loading photon data |
+| protonUniform | int | (Ignored if **uniformThreshold** is **False**) Specifies the uniform minimum amount of excited charge when loading proton data |
+| gamma | json | (Ignored if **uniformThreshold** is **True**) Specifies the uniform minimum amount of excited charge when loading photon data, requiring specific settings for photons at different energy levels |
+| proton | json | (Ignored if **uniformThreshold** is **True**) Specifies the uniform minimum amount of excited charge when loading proton data, requiring specific settings for protons at different energy levels |
+
+The **GPU** parameter specifies the properties of the graphics card used by the deep learning program during training. The related parameters are as follows:
+| Keyword | Type | Description |
+| ---  | --- | --- |
+| mainGPUIndex  | int | Specifies the main GPU index used for training (Note that for single-GPU computers, this parameter defaults to 0; for computers without a GPU, GPU-related settings are disabled) |
+| multiple  | bool | Specifies whether to enable multi-GPU parallel computing |
+| multipleGPUIndex  | list | (Ignored if **multiple** is **False**) Specifies the list of GPU indexes involved in parallel computing |
+
+The **tempData** parameter specifies the attributes related to the program's use of preloaded data. The related parameters are as follows:
+| Keyword | Type | Description |
+| ---  | --- | --- |
+| autoSave  | bool | Indicates whether the program caches preloaded data; if enabled, loading the same type of data next time will be faster but will consume more storage space |
+| savePath  | string | (Ignored if **autoSave** is **False**) Specifies the caching location for preloaded data (Note that you should ensure there is sufficient storage space in this location) |
+| loadPath  | list | Specifies the caching addresses where the program stores preloaded data; during the data loading process, the program will sequentially read from **data/temp** and all the locations specified by this parameter until it finds the cached data that meets the criteria or reloads the data |
+
+<br><br>
+
+### Accessibility
+Whether you are running in a debugger, **nohup** hosted, or submitting to a compute cluster, we have developed a standalone logging module to assist in **GPLearn** operation: no matter where the program is running, you can access the specified log file to see all the output from the current program run. Our log files are stored in the **/data/log** directory and are named with the timestamp of the execution of the program, so you can easily locate the log file of the current program. With the help of the log, you can:<br>
+1. restore the main entry file of the program execution: the log will save all the codes in the entry file of the program, so you can easily restore the codes;
+2. restore the main settings of the program execution: the log will save all the settings in **settings.json** that are called in the program execution, you can easily realize settings restoration;
+3. view the information about the program running: the log will save the current program version number, running process ID, program main entry path and other information;
+4. View training tasks and progress: the log will save all the output information during data processing, model loading, training and testing, you can view the length of the loaded dataset, the model information, the training iteration loss, the results of the test set and the corresponding completion time, which will play an important role in your judgment;
+5. View the estimated remaining time: the log will give you the estimated remaining time and the estimated completion time according to the previous program operation, which will serve as the basis for you to reasonably plan the time allocation.
+
+After the training is complete, if you have recorded detailed data information about the training process (usually a **.data** file with the same name as the log file, located in the **/data/info** directory), you can call GPLearn's built-in drawing package <center> **from bin.draw import \*** </center>
+
+We strongly recommend that you execute the drawing part of the code in Jupyter Notepad. The final test result of the program can be shown by the **result_genereation** function, which only needs to be passed the corresponding process data file (**.data** file).<br>
+Of course, you can customize the style of the output image by setting the **drawing -> result** section under the **settings.json** file; for different result images of different training tasks, you can make the following settings:
+| Keyword | Default | Description |
+| ---  | --- | --- |
+| title | - | Outputs the title of the chart, which will be used as the file name if Save Image As is set |
+| xlabel | - | Horizontal axis title |
+| ylabel | - | Vertical Axis Header |
+| label | Deep-Learning | graph line title |
+| TeV_mode | false | Whether the energy value is in **TeV** |
+| logX_mode | false | Whether the horizontal coordinate is logarithmically labeled |
+| logY_mode | false | Whether the vertical coordinate is labeled in logarithmic form |
+| color | null | graph line color |
+| save -> switch | false | whether you need to save as image |
+| save -> head_name | null | Save as image header name |
+| save -> dpi | 400 | Save as image definition |
