@@ -52,7 +52,7 @@ In order for you to use GPLearn properly, make sure you have the following depen
 6. pandas  ^1.2.4<br><br>
 
 ## Installation
-1. Run the following clone command at the location you specified:<br><center>**git clone https://gitee.com/chengaoyan/gplearn.git**</center>
+1. Run the following clone command at the location you specified:<br><center>**git clone https://github.com/caihao/gpLearn.git**</center>
 2. If you are downloading the program for the first time, first run the **init.py** file located in the program's home directory. This script checks to see if the **/data** directory and its subdirectories in the program's home directory are complete (and creates a patch if they are not).
 3. The **main.py** file located in the main directory of the program is a job script where you can set up the execution flow of the program according to your different needs, and you may need to change the **settings.json** file for some parameter adjustments, which will be explained in the following sections. In addition, **main_quick_start.py** provides a simple demo program for background suppression, which you can run directly.
 4. We recommend that you use the **nohup** command to host your run on the supercomputing server, for which we have written an adapted logging function and remaining time prediction function, and all your outputs (including all intermediate results) will be automatically saved!
